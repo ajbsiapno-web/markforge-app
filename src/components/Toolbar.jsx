@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flex, Button, IconButton, Select, Tooltip, DropdownMenu, Separator, Badge } from '@radix-ui/themes';
+import { Flex, Text, Button, IconButton, Select, Tooltip, DropdownMenu, Separator, Badge } from '@radix-ui/themes';
 import {
   FilePlus,
   FolderOpen,
