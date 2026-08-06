@@ -240,7 +240,9 @@ export default function App() {
             setSelectedModel((prev) => (res.models.includes(prev) ? prev : res.models[0]));
             return;
           }
-        } catch {}
+        } catch (e) {
+          /* ignore */
+        }
       }
 
       try {
