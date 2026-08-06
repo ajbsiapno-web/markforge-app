@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MarkForge — AI-Powered Markdown Editor</title>
+  <meta name="description" content="A beautiful WYSIWYG Markdown editor with built-in AI to fix, improve, and convert your documents." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <!-- highlight.js for code blocks -->
+  <link rel="stylesheet" href="github-dark.min.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Custom title bar -->
+  <div class="titlebar" id="titlebar">
+    <div class="titlebar-logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+        <polyline points="10 9 9 9 8 9"/>
+      </svg>
+      <span>MarkForge</span>
+    </div>
+    <div class="titlebar-file" id="titlebar-file">Untitled.md</div>
+    <div class="titlebar-actions">
+      <div class="modified-dot" id="modified-dot"></div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar" id="toolbar">
+    <div class="toolbar-group">
+      <button class="toolbar-btn" id="btn-new" title="New (Ctrl+N)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      </button>
+      <button class="toolbar-btn" id="btn-open" title="Open (Ctrl+O)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      </button>
+      <button class="toolbar-btn" id="btn-save" title="Save (Ctrl+S)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      </button>
+    </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group">
+      <button class="toolbar-btn format-btn" data-action="bold" title="Bold (Ctrl+B)">
+        <strong>B</strong>
+      </button>
+      <button class="toolbar-btn format-btn" data-action="italic" title="Italic (Ctrl+I)">
+        <em>I</em>
+      </button>
+      <button class="toolbar-btn format-btn" data-action="strikethrough" title="Strikethrough">
+        <s>S</s>
+      </button>
+      <button class="toolbar-btn format-btn" data-action="code" title="Inline Code">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      </button>
+    </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group">
+      <select class="toolbar-select" id="heading-select" title="Heading">
+        <option value="">Paragraph</option>
+        <option value="h1"># H1</option>
+        <option value="h2">## H2</option>
+        <option value="h3">### H3</option>
+        <option value="h4">#### H4</option>
+      </select>
+    </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group">
+      <button class="toolbar-btn format-btn" data-action="ul" title="Bullet List">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      </button>
+      <button class="toolbar-btn format-btn" data-action="ol" title="Numbered List">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10H6"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>
+      </button>
+      <button class="toolbar-btn format-btn" data-action="blockquote" title="Blockquote">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/></svg>
+      </button>
+      <button class="toolbar-btn format-btn" data-action="hr" title="Horizontal Rule">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button class="toolbar-btn format-btn" data-action="link" title="Insert Link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      </button>
+      <button class="toolbar-btn format-btn" data-action="table" title="Insert Table">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+      </button>
+    </div>
+    <div class="toolbar-separator"></div>
+    <!-- View Toggle -->
+    <div class="toolbar-group">
+      <div class="view-toggle" id="view-toggle">
+        <button class="view-btn active" id="btn-wysiwyg" title="WYSIWYG">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          WYSIWYG
+        </button>
+        <button class="view-btn" id="btn-source" title="Source">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          Source
+        </button>
+        <button class="view-btn" id="btn-split" title="Split">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+          Split
+        </button>
+      </div>
+    </div>
+    <div class="toolbar-spacer"></div>
+    <!-- AI Button -->
+    <div class="toolbar-group ai-group">
+      <button class="toolbar-btn ai-main-btn" id="btn-ai" title="AI Actions">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
+        </svg>
+        AI Fix
+        <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="ai-dropdown" id="ai-dropdown">
+        <button class="ai-dropdown-item" data-type="fix">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Fix Markdown Syntax
+          <kbd>Ctrl+Shift+F</kbd>
+        </button>
+        <button class="ai-dropdown-item" data-type="grammar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          Improve Grammar & Style
+          <kbd>Ctrl+Shift+G</kbd>
+        </button>
+        <button class="ai-dropdown-item" data-type="structure">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          Improve Structure
+          <kbd>Ctrl+Shift+H</kbd>
+        </button>
+        <button class="ai-dropdown-item" data-type="expand">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Generate Missing Content
+          <kbd>Ctrl+Shift+E</kbd>
+        </button>
+        <button class="ai-dropdown-item" data-type="convert">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          Convert Text → Markdown
+        </button>
+        <div class="ai-dropdown-divider"></div>
+        <div class="ai-model-row">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 0 0 12 2 10 10 0 0 0 2 12a10 10 0 0 0 2.93 7.07"/></svg>
+          <span>Model:</span>
+          <select id="model-select" class="model-select-dropdown"></select>
+          <button class="refresh-models-btn" id="btn-refresh-models" title="Refresh models">↻</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main editor area -->
+  <div class="editor-container" id="editor-container">
+    <!-- WYSIWYG / Preview pane -->
+    <div class="editor-pane wysiwyg-pane" id="wysiwyg-pane">
+      <div class="wysiwyg-editor" id="wysiwyg-editor" contenteditable="true" spellcheck="true" data-placeholder="Start writing in Markdown..."></div>
+    </div>
+
+    <!-- Source editor pane -->
+    <div class="editor-pane source-pane hidden" id="source-pane">
+      <textarea class="source-editor" id="source-editor" spellcheck="false" placeholder="# Start writing Markdown here..."></textarea>
+    </div>
+
+    <!-- Split divider -->
+    <div class="split-divider hidden" id="split-divider"></div>
+
+    <!-- Split preview pane -->
+    <div class="editor-pane preview-pane hidden" id="preview-pane">
+      <div class="preview-content" id="preview-content"></div>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div class="statusbar" id="statusbar">
+    <div class="statusbar-left">
+      <span id="status-words">0 words</span>
+      <span class="statusbar-sep">·</span>
+      <span id="status-chars">0 chars</span>
+      <span class="statusbar-sep">·</span>
+      <span id="status-lines">1 line</span>
+    </div>
+    <div class="statusbar-right">
+      <div class="ollama-status" id="ollama-status">
+        <div class="status-dot offline" id="status-dot"></div>
+        <span id="status-text">Ollama offline</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Overlay / Modal -->
+  <div class="ai-overlay hidden" id="ai-overlay">
+    <div class="ai-modal" id="ai-modal">
+      <div class="ai-modal-header">
+        <div class="ai-modal-title" id="ai-modal-title">
+          <div class="ai-spinner" id="ai-spinner">
+            <div class="spinner-ring"></div>
+          </div>
+          <span id="ai-modal-label">AI is working...</span>
+        </div>
+        <button class="ai-modal-close" id="ai-modal-close">✕</button>
+      </div>
+      <div class="ai-modal-body" id="ai-modal-body">
+        <div class="ai-diff-area" id="ai-diff-area">
+          <!-- diff rendered here -->
+        </div>
+      </div>
+      <div class="ai-modal-footer">
+        <button class="btn-secondary" id="btn-ai-cancel">Discard</button>
+        <button class="btn-primary" id="btn-ai-apply">Apply Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notifications -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="../node_modules/marked/lib/marked.umd.js"></script>
+  <script src="highlight.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
