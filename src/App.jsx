@@ -11,31 +11,32 @@ import ProfileModal from './components/ProfileModal';
 import ShareModal from './components/ShareModal';
 import CommentsDrawer from './components/CommentsDrawer';
 import ShortcutsModal from './components/ShortcutsModal';
+import AiSettingsModal from './components/AiSettingsModal';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { fetchUserDocuments, saveUserDocument, deleteUserDocument } from './lib/documents';
 import { fetchDocumentComments } from './lib/commentsAndShares';
 import { exportToPdf, exportToHtml, exportToMarkdown, copyRenderedHtmlToClipboard } from './lib/export';
+import { AI_PROVIDERS, getSavedApiKey, executeAiPrompt } from './lib/aiProviders';
 
 const WELCOME_MD = `# Welcome to MarkForge ✨
 
-> A beautiful WYSIWYG Markdown editor built with **Radix UI**, **LaTeX Math Formulas**, **Flowcharts**, **Supabase Cloud Database & Auth**, and powered by local **Ollama AI**.
+> A beautiful WYSIWYG Markdown editor built with **Radix UI**, **Multi-Provider AI**, **LaTeX Math Formulas**, **Flowcharts**, and **Supabase Cloud Sync**.
 
 ## Getting Started
 
-1. Start **Ollama** locally on your computer: \`ollama serve\`
-2. Pull a model: \`ollama pull llama3\`
-3. Click the **AI Actions ✦** button in the toolbar to improve your document!
+1. **AI Actions**: Choose your AI provider (**OpenAI**, **Anthropic Claude**, **Google Gemini**, or local **Ollama**).
+2. Click the **AI Actions ✦** button in the toolbar to improve, expand, or format your document!
 
 ## Features
 
 - 🖊️ **WYSIWYG Editing** — see your Markdown rendered cleanly as you write
+- 🤖 **Multi-Provider AI** — support for OpenAI (GPT-4o), Claude 3.5, Gemini 1.5, & Local Ollama
 - 🧮 **LaTeX Math Formulas** — render complex equations with KaTeX (\`$$\` display & \`$\` inline)
 - 📊 **Flowchart & Diagrams** — write \`\`\`mermaid code blocks to render live SVG diagrams
 - 🔀 **Split View** — side-by-side source editor & live preview
 - 🔗 **Document Sharing** — invite collaborators via email or copy public sharing links
 - 💬 **Live Document Comments** — discuss changes and post comments per document
 - ☁️ **Cloud User Documents** — user files automatically saved and synced per account
-- 🤖 **Local AI Actions** — fix syntax, improve grammar, restructure, or generate text with Ollama
 
 ## Markdown Showcase
 
@@ -66,10 +67,10 @@ function greet(name) {
 | Feature       | MarkText | MarkForge |
 | ------------- | -------- | --------- |
 | WYSIWYG       | ✅       | ✅        |
+| Multi-AI      | ❌       | ✅        |
 | LaTeX Math    | ❌       | ✅        |
 | Flowcharts    | ❌       | ✅        |
 | Share & Chat  | ❌       | ✅        |
-| Local AI      | ❌       | ✅        |
 
 ---
 
@@ -86,6 +87,7 @@ export default function App() {
 
   // Modal States
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [isAiSettingsOpen, setIsAiSettingsOpen] = useState(false);
   const [findReplaceState, setFindReplaceState] = useState({ isOpen: false, showReplace: false });
 
   // Global keybindings
@@ -136,7 +138,14 @@ export default function App() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
-  // Ollama AI state
+  // Multi-Provider AI State
+  const [activeProvider, setActiveProvider] = useState(() => {
+    try {
+      return localStorage.getItem('markforge_provider') || 'ollama';
+    } catch {
+      return 'ollama';
+    }
+  });
   const [ollamaStatus, setOllamaStatus] = useState('loading');
   const [availableModels, setAvailableModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('');
@@ -216,52 +225,62 @@ export default function App() {
     }
   }, []);
 
-  // Hybrid Ollama Checker (Supports Electron IPC + Web HTTP Fetch to http://localhost:11434)
-  const checkOllama = useCallback(async () => {
-    setOllamaStatus('loading');
+  // Update models based on selected AI Provider
+  const updateProviderModels = useCallback(async () => {
+    const providerObj = AI_PROVIDERS[activeProvider] || AI_PROVIDERS.ollama;
 
-    // 1. Try Electron IPC first
-    if (window.electronAPI?.ollamaModels) {
+    if (activeProvider === 'ollama') {
+      setOllamaStatus('loading');
+      // Check Ollama via IPC or HTTP
+      if (window.electronAPI?.ollamaModels) {
+        try {
+          const res = await window.electronAPI.ollamaModels();
+          if (res.success && res.models?.length > 0) {
+            setOllamaStatus('online');
+            setAvailableModels(res.models);
+            setSelectedModel((prev) => (res.models.includes(prev) ? prev : res.models[0]));
+            return;
+          }
+        } catch {}
+      }
+
       try {
-        const res = await window.electronAPI.ollamaModels();
-        if (res.success && res.models?.length > 0) {
-          setOllamaStatus('online');
-          setAvailableModels(res.models);
-          setSelectedModel((prev) => (res.models.includes(prev) ? prev : res.models[0]));
-          return;
+        const response = await fetch('http://localhost:11434/api/tags', { method: 'GET' });
+        if (response.ok) {
+          const data = await response.json();
+          const modelNames = (data.models || []).map((m) => m.name);
+          if (modelNames.length > 0) {
+            setOllamaStatus('online');
+            setAvailableModels(modelNames);
+            setSelectedModel((prev) => (modelNames.includes(prev) ? prev : modelNames[0]));
+            return;
+          }
         }
+        setOllamaStatus('online');
+        setAvailableModels([]);
+        setSelectedModel('');
       } catch (err) {
-        console.warn('Electron IPC Ollama check failed:', err);
+        setOllamaStatus('offline');
+        setAvailableModels([]);
+        setSelectedModel('');
       }
-    }
-
-    // 2. Direct Web REST API fallback (http://localhost:11434/api/tags)
-    try {
-      const response = await fetch('http://localhost:11434/api/tags', { method: 'GET' });
-      if (response.ok) {
-        const data = await response.json();
-        const modelNames = (data.models || []).map((m) => m.name);
-        if (modelNames.length > 0) {
-          setOllamaStatus('online');
-          setAvailableModels(modelNames);
-          setSelectedModel((prev) => (modelNames.includes(prev) ? prev : modelNames[0]));
-          return;
-        }
-      }
+    } else {
+      // Cloud Providers (OpenAI, Anthropic, Gemini)
       setOllamaStatus('online');
-      setAvailableModels([]);
-      setSelectedModel('');
-    } catch (err) {
-      console.warn('Ollama local HTTP check offline:', err.message);
-      setOllamaStatus('offline');
-      setAvailableModels([]);
-      setSelectedModel('');
+      const models = providerObj.defaultModels;
+      setAvailableModels(models);
+      setSelectedModel(models[0]);
     }
-  }, []);
+  }, [activeProvider]);
 
   useEffect(() => {
-    checkOllama();
-  }, [checkOllama]);
+    updateProviderModels();
+  }, [updateProviderModels]);
+
+  const handleProviderChange = (newProvider) => {
+    setActiveProvider(newProvider);
+    localStorage.setItem('markforge_provider', newProvider);
+  };
 
   // Auth Handlers
   const handleLogin = (user) => {
@@ -366,56 +385,20 @@ export default function App() {
     }
   };
 
-  // IPC Event Listeners from Main Process
-  useEffect(() => {
-    if (!window.electronAPI) return;
-
-    window.electronAPI.onMenuNew(() => handleNewFile());
-    window.electronAPI.onMenuSave(() => handleSaveFile());
-    window.electronAPI.onMenuSaveAs(() => handleSaveFileAs());
-    window.electronAPI.onFileOpened(({ content, filePath: fp }) => {
-      setMarkdown(content);
-      setLastSaved(content);
-      setFilePath(fp);
-      setIsModified(false);
-    });
-    window.electronAPI.onAIFix((type) => triggerAI(type));
-  }, [markdown, filePath, activeDocId, currentUser]);
-
-  // Formatting actions
-  const handleFormatAction = (action) => {
-    const formatMap = {
-      bold: ['**', '**'],
-      italic: ['*', '*'],
-      strikethrough: ['~~', '~~'],
-      code: ['`', '`'],
-      ul: ['\n- ', ''],
-      ol: ['\n1. ', ''],
-      blockquote: ['\n> ', ''],
-      hr: ['\n\n---\n\n', ''],
-      link: ['[Link text](', 'https://)'],
-      table: ['\n| Column 1 | Column 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |\n', ''],
-    };
-
-    if (formatMap[action]) {
-      const [pre, post] = formatMap[action];
-      setMarkdown((prev) => prev + pre + post);
-      setIsModified(true);
-    }
-  };
-
-  const handleHeadingAction = (level) => {
-    if (!level || level === 'p') return;
-    const prefixMap = { h1: '# ', h2: '## ', h3: '### ', h4: '#### ' };
-    const prefix = prefixMap[level] || '';
-    setMarkdown((prev) => prev + `\n${prefix}`);
-    setIsModified(true);
-  };
-
-  // Hybrid AI Prompt Trigger (Supports Electron IPC + Direct Browser HTTP POST to http://localhost:11434/api/generate)
+  // Multi-Provider AI Prompt Trigger
   const triggerAI = async (type) => {
     if (!markdown.trim()) return;
-    if (!selectedModel) {
+
+    const providerObj = AI_PROVIDERS[activeProvider] || AI_PROVIDERS.ollama;
+    const apiKey = getSavedApiKey(activeProvider);
+
+    if (providerObj.requiresKey && !apiKey) {
+      alert(`An API Key is required for ${providerObj.name}. Click the gear ⚙️ icon in AI Actions to set your key.`);
+      setIsAiSettingsOpen(true);
+      return;
+    }
+
+    if (activeProvider === 'ollama' && !selectedModel) {
       alert('No Ollama model selected. Make sure Ollama is running locally ("ollama serve") and you have pulled a model ("ollama pull llama3").');
       return;
     }
@@ -436,55 +419,29 @@ export default function App() {
       convert: `Convert this raw text into clean, well-formatted Markdown with headings, code blocks, and lists. Return ONLY the Markdown:\n\n${markdown}`,
     };
 
-    setAiTitle(labels[type] || 'AI Processing...');
+    setAiTitle(`${labels[type] || 'AI Processing...'} (${providerObj.name})`);
     setAiLoading(true);
     setAiError(null);
     setAiModalOpen(true);
 
-    const promptText = prompts[type] || markdown;
-
-    // 1. Try Electron IPC call if available
-    if (window.electronAPI?.ollamaCall) {
-      const res = await window.electronAPI.ollamaCall({
-        prompt: promptText,
-        model: selectedModel,
-      });
-
-      setAiLoading(false);
-      if (res.success && res.response) {
-        const result = res.response.trim();
-        setAiPendingResult(result);
-        setAiDiff(computeDiff(markdown, result));
-      } else {
-        setAiError(res.error || 'Failed to communicate with Ollama via Electron IPC');
-      }
-      return;
-    }
-
-    // 2. Direct Browser HTTP POST to Ollama (http://localhost:11434/api/generate)
     try {
-      const response = await fetch('http://localhost:11434/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: selectedModel,
-          prompt: promptText,
-          stream: false,
-        }),
+      const result = await executeAiPrompt({
+        provider: activeProvider,
+        model: selectedModel,
+        apiKey,
+        prompt: prompts[type] || markdown,
       });
 
       setAiLoading(false);
-      if (response.ok) {
-        const data = await response.json();
-        const result = (data.response || '').trim();
+      if (result) {
         setAiPendingResult(result);
         setAiDiff(computeDiff(markdown, result));
       } else {
-        setAiError(`Ollama API error: ${response.statusText}`);
+        setAiError('Empty response received from AI provider');
       }
     } catch (err) {
       setAiLoading(false);
-      setAiError(`Failed to reach local Ollama: ${err.message}. Is "ollama serve" running?`);
+      setAiError(err.message || 'AI request failed');
     }
   };
 
@@ -521,10 +478,12 @@ export default function App() {
         onFormatAction={handleFormatAction}
         onHeadingAction={handleHeadingAction}
         onAIFix={triggerAI}
+        activeProvider={activeProvider}
         availableModels={availableModels}
         selectedModel={selectedModel}
         onModelSelect={setSelectedModel}
-        onRefreshModels={checkOllama}
+        onRefreshModels={updateProviderModels}
+        onOpenAiSettings={() => setIsAiSettingsOpen(true)}
         toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         sidebarOpen={sidebarOpen}
         onOpenShare={() => setIsShareOpen(true)}
@@ -567,7 +526,16 @@ export default function App() {
         markdown={markdown}
         ollamaStatus={ollamaStatus}
         modelCount={availableModels.length}
-        onRefresh={checkOllama}
+        onRefresh={updateProviderModels}
+      />
+
+      {/* AI Settings Modal */}
+      <AiSettingsModal
+        isOpen={isAiSettingsOpen}
+        onClose={() => setIsAiSettingsOpen(false)}
+        currentProvider={activeProvider}
+        onProviderChange={handleProviderChange}
+        onKeysUpdated={updateProviderModels}
       />
 
       {/* Share Modal */}

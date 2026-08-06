@@ -27,7 +27,9 @@ import {
   FileCode,
   FileText,
   Copy,
+  Settings,
 } from 'lucide-react';
+import { AI_PROVIDERS } from '../lib/aiProviders';
 
 export default function Toolbar({
   currentMode,
@@ -39,16 +41,20 @@ export default function Toolbar({
   onFormatAction,
   onHeadingAction,
   onAIFix,
+  activeProvider,
   availableModels,
   selectedModel,
   onModelSelect,
   onRefreshModels,
+  onOpenAiSettings,
   toggleSidebar,
   sidebarOpen,
   onOpenShare,
   onOpenComments,
   commentsCount,
 }) {
+  const providerInfo = AI_PROVIDERS[activeProvider] || AI_PROVIDERS.ollama;
+
   return (
     <Flex
       align="center"
@@ -389,29 +395,42 @@ export default function Toolbar({
 
             <DropdownMenu.Separator style={{ margin: '6px 0' }} />
 
-            <Flex align="center" gap="2" px="2" py="2">
-              <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>Model:</span>
-              <Select.Root value={selectedModel || ''} onValueChange={onModelSelect}>
-                <Select.Trigger placeholder="Select model" variant="soft" size="1" style={{ flex: 1, height: 28 }} />
-                <Select.Content size="1">
-                  {availableModels.length === 0 ? (
-                    <Select.Item value="" disabled>
-                      No models found
-                    </Select.Item>
-                  ) : (
-                    availableModels.map((m) => (
-                      <Select.Item key={m} value={m}>
-                        {m}
-                      </Select.Item>
-                    ))
-                  )}
-                </Select.Content>
-              </Select.Root>
-              <Tooltip content="Refresh Ollama Models">
-                <IconButton size="1" variant="ghost" color="gray" onClick={onRefreshModels} style={{ width: 28, height: 28 }}>
-                  <RotateCw size={13} />
+            {/* Provider & Model Selector */}
+            <Flex direction="column" gap="2" px="2" py="1">
+              <Flex align="center" justify="space-between">
+                <Text size="1" weight="bold" style={{ color: '#cbd5e1' }}>
+                  {providerInfo.icon} {providerInfo.name}
+                </Text>
+                <IconButton size="1" variant="ghost" color="violet" onClick={onOpenAiSettings} style={{ width: 24, height: 24 }}>
+                  <Settings size={13} />
                 </IconButton>
-              </Tooltip>
+              </Flex>
+
+              <Flex align="center" gap="2">
+                <Select.Root value={selectedModel || ''} onValueChange={onModelSelect}>
+                  <Select.Trigger placeholder="Select model" variant="soft" size="1" style={{ flex: 1, height: 28 }} />
+                  <Select.Content size="1">
+                    {availableModels.length === 0 ? (
+                      <Select.Item value="" disabled>
+                        No models found
+                      </Select.Item>
+                    ) : (
+                      availableModels.map((m) => (
+                        <Select.Item key={m} value={m}>
+                          {m}
+                        </Select.Item>
+                      ))
+                    )}
+                  </Select.Content>
+                </Select.Root>
+                {activeProvider === 'ollama' && (
+                  <Tooltip content="Refresh Ollama Models">
+                    <IconButton size="1" variant="ghost" color="gray" onClick={onRefreshModels} style={{ width: 28, height: 28 }}>
+                      <RotateCw size={13} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Flex>
             </Flex>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
