@@ -231,7 +231,6 @@ export default function App() {
 
     if (activeProvider === 'ollama') {
       setOllamaStatus('loading');
-      // Check Ollama via IPC or HTTP
       if (window.electronAPI?.ollamaModels) {
         try {
           const res = await window.electronAPI.ollamaModels();
@@ -265,7 +264,6 @@ export default function App() {
         setSelectedModel('');
       }
     } else {
-      // Cloud Providers (OpenAI, Anthropic, Gemini)
       setOllamaStatus('online');
       const models = providerObj.defaultModels;
       setAvailableModels(models);
@@ -383,6 +381,36 @@ export default function App() {
       default:
         break;
     }
+  };
+
+  // Formatting actions
+  const handleFormatAction = (action) => {
+    const formatMap = {
+      bold: ['**', '**'],
+      italic: ['*', '*'],
+      strikethrough: ['~~', '~~'],
+      code: ['`', '`'],
+      ul: ['\n- ', ''],
+      ol: ['\n1. ', ''],
+      blockquote: ['\n> ', ''],
+      hr: ['\n\n---\n\n', ''],
+      link: ['[Link text](', 'https://)'],
+      table: ['\n| Column 1 | Column 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |\n', ''],
+    };
+
+    if (formatMap[action]) {
+      const [pre, post] = formatMap[action];
+      setMarkdown((prev) => prev + pre + post);
+      setIsModified(true);
+    }
+  };
+
+  const handleHeadingAction = (level) => {
+    if (!level || level === 'p') return;
+    const prefixMap = { h1: '# ', h2: '## ', h3: '### ', h4: '#### ' };
+    const prefix = prefixMap[level] || '';
+    setMarkdown((prev) => prev + `\n${prefix}`);
+    setIsModified(true);
   };
 
   // Multi-Provider AI Prompt Trigger
