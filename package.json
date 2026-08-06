@@ -22,7 +22,7 @@
     "@radix-ui/themes": "^3.3.0",
     "@supabase/supabase-js": "^2.112.2",
     "highlight.js": "^11.11.1",
-    "katex": "^0.18.1",
+    "katex": "0.17.0",
     "lucide-react": "^1.29.0",
     "marked": "^15.0.12",
     "marked-katex-extension": "^5.1.10",
