@@ -22,7 +22,7 @@ const WELCOME_MD = `# Welcome to MarkForge ✨
 
 ## Getting Started
 
-1. Start **Ollama** locally: \`ollama serve\`
+1. Start **Ollama** locally on your computer: \`ollama serve\`
 2. Pull a model: \`ollama pull llama3\`
 3. Click the **AI Actions ✦** button in the toolbar to improve your document!
 
@@ -88,9 +88,9 @@ export default function App() {
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [findReplaceState, setFindReplaceState] = useState({ isOpen: false, showReplace: false });
 
+  // Global keybindings
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Toggle Keyboard Shortcuts Modal when pressing ? outside of editable fields
       if (e.key === '?') {
         const activeTag = document.activeElement?.tagName?.toLowerCase();
         const isEditable = document.activeElement?.isContentEditable || activeTag === 'input' || activeTag === 'textarea';
@@ -216,28 +216,46 @@ export default function App() {
     }
   }, []);
 
-  // Check Ollama models
+  // Hybrid Ollama Checker (Supports Electron IPC + Web HTTP Fetch to http://localhost:11434)
   const checkOllama = useCallback(async () => {
     setOllamaStatus('loading');
+
+    // 1. Try Electron IPC first
     if (window.electronAPI?.ollamaModels) {
       try {
         const res = await window.electronAPI.ollamaModels();
         if (res.success && res.models?.length > 0) {
           setOllamaStatus('online');
           setAvailableModels(res.models);
-          setSelectedModel(res.models[0]);
-        } else if (res.success) {
-          setOllamaStatus('online');
-          setAvailableModels([]);
-          setSelectedModel('');
-        } else {
-          setOllamaStatus('offline');
+          setSelectedModel((prev) => (res.models.includes(prev) ? prev : res.models[0]));
+          return;
         }
-      } catch {
-        setOllamaStatus('offline');
+      } catch (err) {
+        console.warn('Electron IPC Ollama check failed:', err);
       }
-    } else {
+    }
+
+    // 2. Direct Web REST API fallback (http://localhost:11434/api/tags)
+    try {
+      const response = await fetch('http://localhost:11434/api/tags', { method: 'GET' });
+      if (response.ok) {
+        const data = await response.json();
+        const modelNames = (data.models || []).map((m) => m.name);
+        if (modelNames.length > 0) {
+          setOllamaStatus('online');
+          setAvailableModels(modelNames);
+          setSelectedModel((prev) => (modelNames.includes(prev) ? prev : modelNames[0]));
+          return;
+        }
+      }
+      setOllamaStatus('online');
+      setAvailableModels([]);
+      setSelectedModel('');
+    } catch (err) {
+      console.warn('Ollama local HTTP check offline:', err.message);
       setOllamaStatus('offline');
+      setAvailableModels([]);
+      setSelectedModel('');
     }
   }, []);
 
@@ -394,11 +412,11 @@ export default function App() {
     setIsModified(true);
   };
 
-  // AI Prompt Trigger
+  // Hybrid AI Prompt Trigger (Supports Electron IPC + Direct Browser HTTP POST to http://localhost:11434/api/generate)
   const triggerAI = async (type) => {
     if (!markdown.trim()) return;
     if (!selectedModel) {
-      alert('No Ollama model selected. Is Ollama running?');
+      alert('No Ollama model selected. Make sure Ollama is running locally ("ollama serve") and you have pulled a model ("ollama pull llama3").');
       return;
     }
 
@@ -423,9 +441,12 @@ export default function App() {
     setAiError(null);
     setAiModalOpen(true);
 
+    const promptText = prompts[type] || markdown;
+
+    // 1. Try Electron IPC call if available
     if (window.electronAPI?.ollamaCall) {
       const res = await window.electronAPI.ollamaCall({
-        prompt: prompts[type] || markdown,
+        prompt: promptText,
         model: selectedModel,
       });
 
@@ -435,8 +456,35 @@ export default function App() {
         setAiPendingResult(result);
         setAiDiff(computeDiff(markdown, result));
       } else {
-        setAiError(res.error || 'Failed to communicate with Ollama');
+        setAiError(res.error || 'Failed to communicate with Ollama via Electron IPC');
       }
+      return;
+    }
+
+    // 2. Direct Browser HTTP POST to Ollama (http://localhost:11434/api/generate)
+    try {
+      const response = await fetch('http://localhost:11434/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: selectedModel,
+          prompt: promptText,
+          stream: false,
+        }),
+      });
+
+      setAiLoading(false);
+      if (response.ok) {
+        const data = await response.json();
+        const result = (data.response || '').trim();
+        setAiPendingResult(result);
+        setAiDiff(computeDiff(markdown, result));
+      } else {
+        setAiError(`Ollama API error: ${response.statusText}`);
+      }
+    } catch (err) {
+      setAiLoading(false);
+      setAiError(`Failed to reach local Ollama: ${err.message}. Is "ollama serve" running?`);
     }
   };
 
