@@ -1,13 +1,17 @@
-name: Deploy MarkForge to Vercel
+name: MarkForge CI Validation Pipeline
 
 on:
   push:
     branches:
       - main
       - master
+  pull_request:
+    branches:
+      - main
+      - master
 
 jobs:
-  validate-and-deploy:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -21,11 +25,5 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Run TypeCheck & ESLint Rules Validation
+      - name: Run TypeCheck & ESLint Rules & Build Validation
         run: npm run validate
-
-      - name: Deploy to Vercel Production
-        run: npx vercel --token ${{ secrets.VERCEL_TOKEN }} --yes --prod
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
