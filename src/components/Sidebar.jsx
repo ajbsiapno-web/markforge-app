@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Flex, Text, Box, Card, Badge, Separator, Button, IconButton, Tooltip } from '@radix-ui/themes';
-import { List, Clock, FileText, FolderPlus, Trash2, Cloud, Check } from 'lucide-react';
+import { Flex, Text, Box, Card, Badge, Button, IconButton, Tooltip } from '@radix-ui/themes';
+import { List, Clock, FileText, FolderPlus, Trash2, Cloud, UploadCloud } from 'lucide-react';
 
 export default function Sidebar({
   markdown,
@@ -12,8 +12,10 @@ export default function Sidebar({
   onNewDoc,
   onDeleteDoc,
   onSelectHeading,
+  onImportFile,
 }) {
   const [activeTab, setActiveTab] = useState('files'); // 'files' | 'outline'
+  const [isDragOverSidebar, setIsDragOverSidebar] = useState(false);
 
   // Extract outline (headings) from markdown text
   const headings = useMemo(() => {
@@ -44,9 +46,35 @@ export default function Sidebar({
 
   if (!isOpen) return null;
 
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOverSidebar(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOverSidebar(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOverSidebar(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      onImportFile(files[0]);
+    }
+  };
+
   return (
     <Box
       className="glass-pane"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       style={{
         width: 280,
         height: '100%',
@@ -56,8 +84,38 @@ export default function Sidebar({
         flexShrink: 0,
         userSelect: 'none',
         zIndex: 20,
+        position: 'relative',
+        background: isDragOverSidebar ? 'rgba(124, 58, 237, 0.15)' : undefined,
+        transition: 'background 0.2s ease',
       }}
     >
+      {/* Drag & Drop Visual Overlay on Sidebar */}
+      {isDragOverSidebar && (
+        <Flex
+          direction="column"
+          align="center"
+          justify="center"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.92)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 30,
+            border: '2px dashed #a78bfa',
+            borderRadius: 8,
+            pointerEvents: 'none',
+          }}
+        >
+          <UploadCloud size={40} style={{ color: '#c084fc', marginBottom: 10 }} />
+          <Text size="2" weight="bold" style={{ color: '#f8fafc' }}>
+            Drop File Here
+          </Text>
+          <Text size="1" style={{ color: '#94a3b8', marginTop: 4 }}>
+            Import into Cloud Documents
+          </Text>
+        </Flex>
+      )}
+
       {/* Tab Switcher Header */}
       <Flex p="2" gap="1" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
         <Button
@@ -90,11 +148,18 @@ export default function Sidebar({
               <Text size="1" weight="bold" style={{ color: '#94a3b8', letterSpacing: '0.5px' }}>
                 CLOUD DOCUMENTS ({userDocs?.length || 0})
               </Text>
-              <Tooltip content="New File">
-                <IconButton size="1" variant="ghost" color="violet" onClick={onNewDoc}>
-                  <FolderPlus size={15} />
-                </IconButton>
-              </Tooltip>
+              <Flex gap="1">
+                <Tooltip content="Import File (.md)">
+                  <IconButton size="1" variant="ghost" color="violet" onClick={() => document.getElementById('markforge-file-input')?.click()}>
+                    <UploadCloud size={15} />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip content="New File">
+                  <IconButton size="1" variant="ghost" color="violet" onClick={onNewDoc}>
+                    <FolderPlus size={15} />
+                  </IconButton>
+                </Tooltip>
+              </Flex>
             </Flex>
 
             {userDocs?.length === 0 ? (
@@ -102,7 +167,7 @@ export default function Sidebar({
                 <FileText size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
                 <Text size="2" color="gray">
                   No saved cloud files yet.
-                  <br /> Save your document (Ctrl+S) to view it here!
+                  <br /> Save your document (Ctrl+S) or drag & drop a file here!
                 </Text>
               </Box>
             ) : (
@@ -164,6 +229,22 @@ export default function Sidebar({
                 })}
               </Flex>
             )}
+
+            {/* Drag & Drop Hint */}
+            <Box
+              style={{
+                border: '1px dashed rgba(255, 255, 255, 0.12)',
+                borderRadius: 8,
+                padding: '10px 12px',
+                textAlign: 'center',
+                marginTop: 8,
+                background: 'rgba(255, 255, 255, 0.02)',
+              }}
+            >
+              <Text size="1" style={{ color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <UploadCloud size={14} color="#8b5cf6" /> Drag & drop .md files to import
+              </Text>
+            </Box>
           </Flex>
         )}
 

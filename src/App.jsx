@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Flex } from '@radix-ui/themes';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Flex, Text } from '@radix-ui/themes';
+import { UploadCloud } from 'lucide-react';
 import Titlebar from './components/Titlebar';
 import Toolbar from './components/Toolbar';
 import Sidebar from './components/Sidebar';
@@ -85,6 +86,10 @@ export default function App() {
   const [mode, setMode] = useState('wysiwyg'); // 'wysiwyg' | 'source' | 'split'
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // Native File Input & Drag & Drop Refs
+  const fileInputRef = useRef(null);
+  const [isGlobalDragging, setIsGlobalDragging] = useState(false);
+
   // Modal States
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isAiSettingsOpen, setIsAiSettingsOpen] = useState(false);
@@ -103,7 +108,10 @@ export default function App() {
         }
       }
 
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'o' || e.key === 'O')) {
+        e.preventDefault();
+        fileInputRef.current?.click();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
         e.preventDefault();
         setFindReplaceState({ isOpen: true, showReplace: false, trigger: Date.now() });
       } else if ((e.ctrlKey || e.metaKey) && (e.key === 'h' || e.key === 'H')) {
@@ -312,7 +320,7 @@ export default function App() {
     setIsModified(newMd !== lastSaved);
   };
 
-  // File Operations
+  // File Operations (Native OS Dialog & Drag-Drop Import)
   const handleNewFile = () => {
     if (isModified && !confirm('Unsaved changes will be lost. Create new document?')) return;
     setMarkdown('');
@@ -323,9 +331,61 @@ export default function App() {
   };
 
   const handleOpenFile = () => {
-    const title = prompt('Enter document title to open or create:', filePath || 'Untitled.md');
-    if (!title) return;
-    setFilePath(title);
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFile = async (file) => {
+    if (!file) return;
+    const filename = file.name || 'Imported.md';
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+      const content = e.target?.result || '';
+      setMarkdown(content);
+      setFilePath(filename);
+      setIsModified(false);
+
+      // Automatically save to Cloud Documents if user is logged in
+      const res = await saveUserDocument(currentUser, null, filename, content);
+      if (res.success && res.doc) {
+        setActiveDocId(res.doc.id);
+        setLastSaved(content);
+        await reloadUserDocs(currentUser);
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
+  const handleFileInputChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleImportFile(file);
+      e.target.value = '';
+    }
+  };
+
+  const handleGlobalDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsGlobalDragging(true);
+  };
+
+  const handleGlobalDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsGlobalDragging(false);
+  };
+
+  const handleGlobalDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsGlobalDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      handleImportFile(files[0]);
+    }
   };
 
   const handleSelectDoc = (doc) => {
@@ -351,19 +411,6 @@ export default function App() {
     if (res.success && res.doc) {
       setActiveDocId(res.doc.id);
       setFilePath(res.doc.title);
-      setLastSaved(markdown);
-      setIsModified(false);
-      await reloadUserDocs(currentUser);
-    }
-  };
-
-  const handleSaveFileAs = async () => {
-    const customTitle = prompt('Enter document title:', filePath || 'Untitled.md');
-    if (!customTitle) return;
-    setFilePath(customTitle);
-    const res = await saveUserDocument(currentUser, null, customTitle, markdown);
-    if (res.success && res.doc) {
-      setActiveDocId(res.doc.id);
       setLastSaved(markdown);
       setIsModified(false);
       await reloadUserDocs(currentUser);
@@ -496,7 +543,51 @@ export default function App() {
   };
 
   return (
-    <div className="app-container">
+    <div
+      className="app-container"
+      onDragOver={handleGlobalDragOver}
+      onDragLeave={handleGlobalDragLeave}
+      onDrop={handleGlobalDrop}
+      style={{ position: 'relative' }}
+    >
+      {/* Hidden Native File Input for Open File Button */}
+      <input
+        type="file"
+        id="markforge-file-input"
+        ref={fileInputRef}
+        accept=".md,.markdown,.txt"
+        style={{ display: 'none' }}
+        onChange={handleFileInputChange}
+      />
+
+      {/* Global Canvas Drag & Drop Overlay */}
+      {isGlobalDragging && (
+        <Flex
+          direction="column"
+          align="center"
+          justify="center"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(11, 13, 20, 0.94)',
+            backdropFilter: 'blur(16px)',
+            zIndex: 9999,
+            border: '3px dashed #a78bfa',
+            margin: 16,
+            borderRadius: 16,
+            pointerEvents: 'none',
+          }}
+        >
+          <UploadCloud size={64} style={{ color: '#c084fc', marginBottom: 16 }} />
+          <Text size="5" weight="bold" style={{ color: '#f8fafc' }}>
+            Drop Markdown File Here
+          </Text>
+          <Text size="3" style={{ color: '#94a3b8', marginTop: 8 }}>
+            Open and import directly into MarkForge Workspace & Cloud Documents
+          </Text>
+        </Flex>
+      )}
+
       {/* Titlebar with User Avatar & Auth & Shortcuts */}
       <Titlebar
         filePath={filePath}
@@ -543,6 +634,7 @@ export default function App() {
           onSelectDoc={handleSelectDoc}
           onNewDoc={handleNewFile}
           onDeleteDoc={handleDeleteDoc}
+          onImportFile={handleImportFile}
         />
 
         <Editor
