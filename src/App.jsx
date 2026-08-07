@@ -576,13 +576,16 @@ export default function App() {
 - If asked to generate math, use $$ formula $$ syntax.
 - Return ONLY clean Markdown text without wrapping in \`\`\`markdown code block fences.`;
 
+    const isNewGeneration = /generate|create|add|insert|flowchart|diagram|table|math|latex/i.test(customInstruction);
+    const contextSnippet = isNewGeneration ? '' : `\n\nCurrent Document Context:\n${markdown.slice(0, 1000)}`;
+
     const prompts = {
       fix: `${systemContext}\n\nFix all broken Markdown syntax in this document:\n\n${markdown}`,
       grammar: `${systemContext}\n\nImprove the grammar, clarity, and phrasing of this Markdown document:\n\n${markdown}`,
       structure: `${systemContext}\n\nImprove section hierarchy and organization of this Markdown document:\n\n${markdown}`,
       expand: `${systemContext}\n\nComplete any gaps or TODOs in this document:\n\n${markdown}`,
       convert: `${systemContext}\n\nConvert this text into clean Markdown with headings and lists:\n\n${markdown}`,
-      agent: `${systemContext}\n\nUser Request: ${customInstruction}\n\nCurrent Document Context:\n${markdown}`,
+      agent: `${systemContext}\n\nUser Request: ${customInstruction}${contextSnippet}`,
     };
 
     const targetType = type || 'agent';

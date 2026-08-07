@@ -86,7 +86,7 @@ export async function executeAiPrompt({ provider, model, apiKey, prompt }) {
   return cleanAiMarkdown(rawResult);
 }
 
-// 1. Ollama (Local) Call with Thread Optimization & Endpoint Fallback
+// 1. Ollama (Local) Call with Timeout & Thread Optimization
 async function callOllama(model, prompt) {
   if (window.electronAPI?.ollamaCall) {
     const res = await window.electronAPI.ollamaCall({ prompt, model });
@@ -94,8 +94,9 @@ async function callOllama(model, prompt) {
     throw new Error(res.error || 'Ollama Electron call failed');
   }
 
+  const selectedModel = model || 'qwen2.5:0.5b';
   const payload = {
-    model: model || 'qwen2.5:0.5b',
+    model: selectedModel,
     prompt: `${prompt}\n\nIMPORTANT: Return ONLY raw, valid Markdown text. Do NOT wrap your output in \`\`\`markdown code block fences.`,
     stream: false,
     options: {
@@ -105,18 +106,27 @@ async function callOllama(model, prompt) {
   };
 
   const tryGenerate = async (url) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25-second safety timeout
+
     try {
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const data = await response.json();
         return (data.response || '').trim();
       }
     } catch (e) {
+      clearTimeout(timeoutId);
+      if (e.name === 'AbortError') {
+        throw new Error(`Ollama (${selectedModel}) request timed out after 25s. Switch model to "qwen2.5:0.5b" or "Google Gemini" for instant generation.`);
+      }
       return null;
     }
     return null;
@@ -128,7 +138,7 @@ async function callOllama(model, prompt) {
   }
 
   if (result) return result;
-  throw new Error('Ollama generation failed. Make sure Ollama server is running locally on port 11434.');
+  throw new Error(`Ollama generation failed for model "${selectedModel}". Make sure Ollama server is running locally ("ollama serve").`);
 }
 
 // 2. OpenAI Call
