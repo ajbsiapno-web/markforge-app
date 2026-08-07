@@ -95,6 +95,36 @@ export default function App() {
   const [isAiSettingsOpen, setIsAiSettingsOpen] = useState(false);
   const [findReplaceState, setFindReplaceState] = useState({ isOpen: false, showReplace: false });
 
+  // Parse shared URL parameters (e.g. ?title=Finished+Goods+3.0) on app load
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const sharedTitle = params.get('title');
+      if (sharedTitle) {
+        setFilePath(decodeURIComponent(sharedTitle));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  // Synchronize document title and Open Graph social sharing meta tags
+  useEffect(() => {
+    if (!filePath) return;
+    const titleText = `${filePath.replace(/\.(md|txt|markdown)$/i, '')} — MarkForge`;
+    document.title = titleText;
+
+    const setMetaTag = (selector, content) => {
+      const el = document.querySelector(selector);
+      if (el) el.setAttribute('content', content);
+    };
+
+    setMetaTag('meta[property="og:title"]', filePath);
+    setMetaTag('meta[property="og:description"]', `View and edit "${filePath}" on MarkForge AI Markdown Editor.`);
+    setMetaTag('meta[name="twitter:title"]', filePath);
+    setMetaTag('meta[name="twitter:description"]', `View and edit "${filePath}" on MarkForge AI Markdown Editor.`);
+  }, [filePath]);
+
   // Global keybindings
   useEffect(() => {
     const handleKeyDown = (e) => {

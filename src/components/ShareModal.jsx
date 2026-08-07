@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, Flex, Button, Text, Box, TextField, Select, Badge, Card, Tooltip } from '@radix-ui/themes';
-import { Share2, Copy, Check, UserPlus, Trash2, Globe, Lock, X, Mail } from 'lucide-react';
+import { Dialog, Flex, Button, Text, Box, TextField, Select, Badge, Card, Tooltip, IconButton } from '@radix-ui/themes';
+import { Share2, Copy, Check, UserPlus, Trash2, Globe, X, Mail, ExternalLink } from 'lucide-react';
 import { fetchDocumentShares, shareDocumentWithUser, removeDocumentShare } from '../lib/commentsAndShares';
 
 export default function ShareModal({ isOpen, onClose, docId, docTitle }) {
@@ -20,12 +20,33 @@ export default function ShareModal({ isOpen, onClose, docId, docTitle }) {
 
   if (!isOpen) return null;
 
-  const shareUrl = `${window.location.origin}/#doc=${docId || 'draft'}`;
+  const titleParam = encodeURIComponent(docTitle || 'Untitled.md');
+  const shareUrl = `${window.location.origin}/?doc=${docId || 'draft'}&title=${titleParam}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSocialShare = (platform) => {
+    const encodedUrl = encodeURIComponent(shareUrl);
+    const text = encodeURIComponent(`📝 Check out "${docTitle || 'Untitled.md'}" on MarkForge:`);
+
+    let url = '';
+    if (platform === 'facebook') {
+      url = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
+    } else if (platform === 'twitter') {
+      url = `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${text}`;
+    } else if (platform === 'linkedin') {
+      url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`;
+    } else if (platform === 'whatsapp') {
+      url = `https://api.whatsapp.com/send?text=${text}%20${encodedUrl}`;
+    }
+
+    if (url) {
+      window.open(url, '_blank', 'width=600,height=500,scrollbars=yes,resizable=yes');
+    }
   };
 
   const handleAddShare = async (e) => {
@@ -60,7 +81,7 @@ export default function ShareModal({ isOpen, onClose, docId, docTitle }) {
     <Dialog.Root open={isOpen} onOpenChange={onClose}>
       <Dialog.Content
         style={{
-          maxWidth: 500,
+          maxWidth: 520,
           background: 'rgba(20, 24, 36, 0.96)',
           backdropFilter: 'blur(24px)',
           border: '1px solid rgba(139, 92, 246, 0.35)',
@@ -117,7 +138,7 @@ export default function ShareModal({ isOpen, onClose, docId, docTitle }) {
             {/* Copy Link Section */}
             <Flex direction="column" gap="1">
               <Text size="2" weight="medium" style={{ color: '#cbd5e1' }}>
-                Document Share Link
+                Shareable Document URL (Includes Title)
               </Text>
               <Flex gap="2" align="center">
                 <TextField.Root
@@ -137,6 +158,50 @@ export default function ShareModal({ isOpen, onClose, docId, docTitle }) {
                 >
                   {copied ? <Check size={16} /> : <Copy size={16} />}
                   {copied ? 'Copied!' : 'Copy Link'}
+                </Button>
+              </Flex>
+            </Flex>
+
+            {/* Direct Social Media Sharing Buttons */}
+            <Flex direction="column" gap="2">
+              <Text size="2" weight="medium" style={{ color: '#cbd5e1' }}>
+                Share Directly to Social Media
+              </Text>
+              <Flex gap="2" wrap="wrap">
+                <Button
+                  size="2"
+                  variant="soft"
+                  onClick={() => handleSocialShare('facebook')}
+                  style={{ background: 'rgba(24, 119, 242, 0.2)', color: '#60a5fa', border: '1px solid rgba(24, 119, 242, 0.4)', borderRadius: 10, cursor: 'pointer' }}
+                >
+                  📘 Facebook
+                </Button>
+
+                <Button
+                  size="2"
+                  variant="soft"
+                  onClick={() => handleSocialShare('twitter')}
+                  style={{ background: 'rgba(29, 155, 240, 0.2)', color: '#38bdf8', border: '1px solid rgba(29, 155, 240, 0.4)', borderRadius: 10, cursor: 'pointer' }}
+                >
+                  🐦 Twitter / X
+                </Button>
+
+                <Button
+                  size="2"
+                  variant="soft"
+                  onClick={() => handleSocialShare('linkedin')}
+                  style={{ background: 'rgba(10, 102, 194, 0.2)', color: '#818cf8', border: '1px solid rgba(10, 102, 194, 0.4)', borderRadius: 10, cursor: 'pointer' }}
+                >
+                  💼 LinkedIn
+                </Button>
+
+                <Button
+                  size="2"
+                  variant="soft"
+                  onClick={() => handleSocialShare('whatsapp')}
+                  style={{ background: 'rgba(37, 211, 102, 0.2)', color: '#4ade80', border: '1px solid rgba(37, 211, 102, 0.4)', borderRadius: 10, cursor: 'pointer' }}
+                >
+                  💬 WhatsApp
                 </Button>
               </Flex>
             </Flex>
