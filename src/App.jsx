@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Flex, Text } from '@radix-ui/themes';
-import { UploadCloud } from 'lucide-react';
+import { UploadCloud, Sparkles } from 'lucide-react';
 import Titlebar from './components/Titlebar';
 import Toolbar from './components/Toolbar';
 import Sidebar from './components/Sidebar';
@@ -755,6 +755,17 @@ export default function App() {
         modelCount={availableModels.length}
         onRefresh={updateProviderModels}
       />
+
+      {/* Mobile Floating Action Button (FAB) for Ask AI Agent */}
+      <button
+        type="button"
+        className="mobile-fab-agent ai-glow-button"
+        onClick={() => setIsAgentBarOpen(true)}
+        aria-label="Ask AI Agent"
+      >
+        <Sparkles size={18} />
+        <span>Ask Agent</span>
+      </button>
 
       {/* Agentic AI Prompt Overlay (Ctrl+K) */}
       <AiAgentBar
