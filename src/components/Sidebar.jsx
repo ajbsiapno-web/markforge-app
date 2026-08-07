@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Flex, Text, Box, Card, Badge, Button, IconButton, Tooltip } from '@radix-ui/themes';
-import { List, Clock, FileText, FolderPlus, Trash2, Cloud, UploadCloud } from 'lucide-react';
+import { List, Clock, FileText, FolderPlus, Trash2, Cloud, UploadCloud, Pencil } from 'lucide-react';
 
 export default function Sidebar({
   markdown,
@@ -13,6 +13,7 @@ export default function Sidebar({
   onDeleteDoc,
   onSelectHeading,
   onImportFile,
+  onRenameDoc,
 }) {
   const [activeTab, setActiveTab] = useState('files'); // 'files' | 'outline'
   const [isDragOverSidebar, setIsDragOverSidebar] = useState(false);
@@ -205,23 +206,39 @@ export default function Sidebar({
                           </Text>
                         </Flex>
 
-                        <Flex align="center" gap="2">
-                          <Text size="1" style={{ color: '#64748b', fontSize: 11 }}>
-                            {formattedDate}
-                          </Text>
-                          <IconButton
-                            size="1"
-                            variant="ghost"
-                            color="red"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (confirm(`Delete "${doc.title}"?`)) {
-                                onDeleteDoc(doc.id);
-                              }
-                            }}
-                          >
-                            <Trash2 size={13} />
-                          </IconButton>
+                        <Flex align="center" gap="1">
+                          <Tooltip content="Rename">
+                            <IconButton
+                              size="1"
+                              variant="ghost"
+                              color="gray"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newTitle = prompt('Rename document:', doc.title);
+                                if (newTitle && newTitle.trim() && newTitle.trim() !== doc.title) {
+                                  onRenameDoc(doc.id, newTitle.trim());
+                                }
+                              }}
+                            >
+                              <Pencil size={13} color="#94a3b8" />
+                            </IconButton>
+                          </Tooltip>
+
+                          <Tooltip content="Delete">
+                            <IconButton
+                              size="1"
+                              variant="ghost"
+                              color="red"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`Delete "${doc.title}"?`)) {
+                                  onDeleteDoc(doc.id);
+                                }
+                              }}
+                            >
+                              <Trash2 size={13} />
+                            </IconButton>
+                          </Tooltip>
                         </Flex>
                       </Flex>
                     </Card>

@@ -17,7 +17,7 @@ import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { fetchUserDocuments, saveUserDocument, deleteUserDocument } from './lib/documents';
 import { fetchDocumentComments } from './lib/commentsAndShares';
 import { exportToPdf, exportToHtml, exportToMarkdown, copyRenderedHtmlToClipboard } from './lib/export';
-import { AI_PROVIDERS, getSavedApiKey, executeAiPrompt } from './lib/aiProviders';
+import { AI_PROVIDERS, getSavedApiKey, executeAiPrompt, cleanAiMarkdown } from './lib/aiProviders';
 
 const WELCOME_MD = `# Welcome to MarkForge ✨
 
@@ -320,7 +320,7 @@ export default function App() {
     setIsModified(newMd !== lastSaved);
   };
 
-  // File Operations (Native OS Dialog & Drag-Drop Import)
+  // File Operations & Document Renaming
   const handleNewFile = () => {
     if (isModified && !confirm('Unsaved changes will be lost. Create new document?')) return;
     setMarkdown('');
@@ -332,6 +332,40 @@ export default function App() {
 
   const handleOpenFile = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleRenameDoc = async (docIdOrTitle, newTitle) => {
+    let targetDocId = activeDocId;
+    let targetTitle = '';
+
+    if (typeof docIdOrTitle === 'string' && newTitle === undefined) {
+      targetTitle = docIdOrTitle;
+    } else {
+      targetDocId = docIdOrTitle;
+      targetTitle = newTitle;
+    }
+
+    if (!targetTitle) return;
+
+    if (!targetTitle.endsWith('.md') && !targetTitle.endsWith('.txt') && !targetTitle.endsWith('.markdown')) {
+      targetTitle = `${targetTitle}.md`;
+    }
+
+    if (targetDocId === activeDocId || !targetDocId) {
+      setFilePath(targetTitle);
+    }
+
+    const targetDoc = userDocs.find((d) => d.id === targetDocId);
+    const contentToSave = targetDoc ? targetDoc.content : markdown;
+
+    const res = await saveUserDocument(currentUser, targetDocId, targetTitle, contentToSave);
+    if (res.success && res.doc) {
+      if (targetDocId === activeDocId || !targetDocId) {
+        setActiveDocId(res.doc.id);
+        setFilePath(res.doc.title);
+      }
+      await reloadUserDocs(currentUser);
+    }
   };
 
   const handleImportFile = async (file) => {
@@ -500,11 +534,11 @@ export default function App() {
     };
 
     const prompts = {
-      fix: `You are a Markdown expert. Fix all broken Markdown syntax (tables, lists, code fences, headers) in this document. Return ONLY the fixed Markdown:\n\n${markdown}`,
-      grammar: `Improve the grammar, clarity, and phrasing of this Markdown document while preserving structure. Return ONLY the improved Markdown:\n\n${markdown}`,
-      structure: `Improve the section hierarchy and organization of this Markdown document. Return ONLY the restructured Markdown:\n\n${markdown}`,
-      expand: `Complete any gaps, TODOs, or placeholder text in this document. Return ONLY the completed Markdown:\n\n${markdown}`,
-      convert: `Convert this raw text into clean, well-formatted Markdown with headings, code blocks, and lists. Return ONLY the Markdown:\n\n${markdown}`,
+      fix: `Fix all broken Markdown syntax (tables, lists, code fences, headers) in this document. Return ONLY the clean Markdown text without wrapping in \`\`\`markdown code block fences:\n\n${markdown}`,
+      grammar: `Improve the grammar, clarity, and phrasing of this Markdown document while preserving structure. Return ONLY the clean Markdown text without wrapping in \`\`\`markdown code block fences:\n\n${markdown}`,
+      structure: `Improve the section hierarchy and organization of this Markdown document. Return ONLY the clean Markdown text without wrapping in \`\`\`markdown code block fences:\n\n${markdown}`,
+      expand: `Complete any gaps, TODOs, or placeholder text in this document. Return ONLY the clean Markdown text without wrapping in \`\`\`markdown code block fences:\n\n${markdown}`,
+      convert: `Convert this raw text into clean, well-formatted Markdown with headings, code blocks, and lists. Return ONLY the clean Markdown text without wrapping in \`\`\`markdown code block fences:\n\n${markdown}`,
     };
 
     setAiTitle(`${labels[type] || 'AI Processing...'} (${providerObj.name})`);
@@ -513,17 +547,18 @@ export default function App() {
     setAiModalOpen(true);
 
     try {
-      const result = await executeAiPrompt({
+      const rawResult = await executeAiPrompt({
         provider: activeProvider,
         model: selectedModel,
         apiKey,
         prompt: prompts[type] || markdown,
       });
 
+      const cleanResult = cleanAiMarkdown(rawResult);
       setAiLoading(false);
-      if (result) {
-        setAiPendingResult(result);
-        setAiDiff(computeDiff(markdown, result));
+      if (cleanResult) {
+        setAiPendingResult(cleanResult);
+        setAiDiff(computeDiff(markdown, cleanResult));
       } else {
         setAiError('Empty response received from AI provider');
       }
@@ -535,7 +570,8 @@ export default function App() {
 
   const applyAIResult = () => {
     if (aiPendingResult) {
-      setMarkdown(aiPendingResult);
+      const cleaned = cleanAiMarkdown(aiPendingResult);
+      setMarkdown(cleaned);
       setIsModified(true);
     }
     setAiModalOpen(false);
@@ -588,7 +624,7 @@ export default function App() {
         </Flex>
       )}
 
-      {/* Titlebar with User Avatar & Auth & Shortcuts */}
+      {/* Titlebar with User Avatar & Auth & Shortcuts & Rename */}
       <Titlebar
         filePath={filePath}
         isModified={isModified}
@@ -597,6 +633,7 @@ export default function App() {
         onOpenProfile={() => setIsProfileOpen(true)}
         onLogout={handleLogout}
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
+        onRenameDoc={handleRenameDoc}
       />
 
       {/* Toolbar */}
@@ -635,6 +672,7 @@ export default function App() {
           onNewDoc={handleNewFile}
           onDeleteDoc={handleDeleteDoc}
           onImportFile={handleImportFile}
+          onRenameDoc={handleRenameDoc}
         />
 
         <Editor

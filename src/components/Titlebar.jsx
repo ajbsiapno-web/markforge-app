@@ -1,9 +1,25 @@
 import React from 'react';
-import { Flex, Text, Button, DropdownMenu, Tooltip, Avatar, IconButton } from '@radix-ui/themes';
-import { FileText, Check, User, LogOut, KeyRound, LogIn, ChevronDown, HelpCircle } from 'lucide-react';
+import { Flex, Text, Button, DropdownMenu, Tooltip, IconButton } from '@radix-ui/themes';
+import { FileText, Check, User, LogOut, KeyRound, LogIn, ChevronDown, HelpCircle, Pencil } from 'lucide-react';
 
-export default function Titlebar({ filePath, isModified, user, onOpenAuth, onOpenProfile, onLogout, onOpenShortcuts }) {
+export default function Titlebar({
+  filePath,
+  isModified,
+  user,
+  onOpenAuth,
+  onOpenProfile,
+  onLogout,
+  onOpenShortcuts,
+  onRenameDoc,
+}) {
   const fileName = filePath ? filePath.split(/[\\/]/).pop() : 'Untitled.md';
+
+  const handleTitleClick = () => {
+    const newTitle = prompt('Rename document:', fileName);
+    if (newTitle && newTitle.trim() && newTitle.trim() !== fileName) {
+      onRenameDoc(newTitle.trim());
+    }
+  };
 
   return (
     <div className="app-titlebar">
@@ -28,14 +44,31 @@ export default function Titlebar({ filePath, isModified, user, onOpenAuth, onOpe
         </Text>
       </Flex>
 
-      {/* Center Document Title */}
+      {/* Center Document Title with Rename Action */}
       <Flex align="center" gap="2" className="titlebar-no-drag">
-        <Text size="2" weight="medium" style={{ color: '#cbd5e1', fontSize: 13 }}>
-          {fileName}
-        </Text>
+        <Flex
+          align="center"
+          gap="1"
+          onClick={handleTitleClick}
+          style={{
+            cursor: 'pointer',
+            padding: '2px 8px',
+            borderRadius: 6,
+            transition: 'background 0.15s ease',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+        >
+          <Text size="2" weight="medium" style={{ color: '#cbd5e1', fontSize: 13 }}>
+            {fileName}
+          </Text>
+          <Tooltip content="Rename Document">
+            <Pencil size={12} color="#94a3b8" style={{ marginLeft: 4 }} />
+          </Tooltip>
+        </Flex>
 
         <Tooltip content={isModified ? 'Unsaved changes' : 'All changes saved'}>
-          <Flex align="center" gap="1" style={{ marginLeft: 6 }}>
+          <Flex align="center" gap="1" style={{ marginLeft: 4 }}>
             {isModified ? (
               <span
                 style={{

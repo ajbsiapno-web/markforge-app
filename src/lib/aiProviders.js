@@ -37,6 +37,22 @@ export const AI_PROVIDERS = {
   },
 };
 
+// Clean raw markdown output from code block wrappers (e.g. ```markdown ... ```)
+export function cleanAiMarkdown(text) {
+  if (!text) return '';
+  let cleaned = text.trim();
+
+  // Strip leading ```markdown or ```md or ``` and trailing ```
+  if (/^```(?:markdown|md)?\s*\n/i.test(cleaned)) {
+    cleaned = cleaned.replace(/^```(?:markdown|md)?\s*\n/i, '');
+  }
+  if (/\n?\s*```$/i.test(cleaned)) {
+    cleaned = cleaned.replace(/\n?\s*```$/i, '');
+  }
+
+  return cleaned.trim();
+}
+
 // Key Management helpers
 export function getSavedApiKey(providerId) {
   try {
@@ -56,15 +72,18 @@ export function saveApiKey(providerId, apiKey) {
 
 // Unified Multi-Provider AI Call Handler
 export async function executeAiPrompt({ provider, model, apiKey, prompt }) {
+  let rawResult = '';
   if (provider === 'openai') {
-    return callOpenAI(apiKey, model, prompt);
+    rawResult = await callOpenAI(apiKey, model, prompt);
   } else if (provider === 'anthropic') {
-    return callAnthropic(apiKey, model, prompt);
+    rawResult = await callAnthropic(apiKey, model, prompt);
   } else if (provider === 'gemini') {
-    return callGemini(apiKey, model, prompt);
+    rawResult = await callGemini(apiKey, model, prompt);
   } else {
-    return callOllama(model, prompt);
+    rawResult = await callOllama(model, prompt);
   }
+
+  return cleanAiMarkdown(rawResult);
 }
 
 // 1. Ollama (Local) Call with Thread Optimization & Endpoint Fallback
@@ -77,7 +96,7 @@ async function callOllama(model, prompt) {
 
   const payload = {
     model: model || 'qwen2.5:0.5b',
-    prompt,
+    prompt: `${prompt}\n\nIMPORTANT: Return ONLY raw, valid Markdown text. Do NOT wrap your output in \`\`\`markdown code block fences.`,
     stream: false,
     options: {
       temperature: 0.2,
@@ -124,8 +143,11 @@ async function callOpenAI(apiKey, model, prompt) {
     },
     body: JSON.stringify({
       model: model || 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.3,
+      messages: [
+        { role: 'system', content: 'You are a Markdown editor assistant. Return ONLY clean Markdown text without wrapping code blocks (do NOT use ```markdown).' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.2,
     }),
   });
 
@@ -153,7 +175,9 @@ async function callAnthropic(apiKey, model, prompt) {
     body: JSON.stringify({
       model: model || 'claude-3-5-sonnet-20240620',
       max_tokens: 4096,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [
+        { role: 'user', content: `${prompt}\n\nReturn ONLY the clean Markdown output. Do NOT wrap output in \`\`\`markdown code fences.` }
+      ],
     }),
   });
 
@@ -177,7 +201,7 @@ async function callGemini(apiKey, model, prompt) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
+      contents: [{ parts: [{ text: `${prompt}\n\nReturn ONLY valid Markdown text without \`\`\`markdown fences.` }] }],
     }),
   });
 
