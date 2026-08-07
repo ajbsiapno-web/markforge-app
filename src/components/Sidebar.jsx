@@ -5,6 +5,7 @@ import { List, Clock, FileText, FolderPlus, Trash2, Cloud, UploadCloud, Pencil }
 export default function Sidebar({
   markdown,
   isOpen,
+  onCloseSidebar,
   user,
   userDocs,
   activeDocId,
@@ -72,7 +73,7 @@ export default function Sidebar({
   return (
     <>
       {/* Mobile Backdrop Overlay */}
-      <div className="mobile-sidebar-backdrop" />
+      <div className="mobile-sidebar-backdrop" onClick={onCloseSidebar} />
 
       <Box
         className="glass-pane app-sidebar"

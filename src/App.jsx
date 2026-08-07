@@ -85,7 +85,7 @@ export default function App() {
   const [filePath, setFilePath] = useState('Welcome.md');
   const [isModified, setIsModified] = useState(false);
   const [mode, setMode] = useState('wysiwyg'); // 'wysiwyg' | 'source' | 'split'
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Native File Input & Drag & Drop Refs
   const fileInputRef = useRef(null);
@@ -714,11 +714,18 @@ export default function App() {
         <Sidebar
           markdown={markdown}
           isOpen={sidebarOpen}
+          onCloseSidebar={() => setSidebarOpen(false)}
           user={currentUser}
           userDocs={userDocs}
           activeDocId={activeDocId}
-          onSelectDoc={handleSelectDoc}
-          onNewDoc={handleNewFile}
+          onSelectDoc={(doc) => {
+            handleSelectDoc(doc);
+            if (window.innerWidth < 768) setSidebarOpen(false);
+          }}
+          onNewDoc={() => {
+            handleNewFile();
+            if (window.innerWidth < 768) setSidebarOpen(false);
+          }}
           onDeleteDoc={handleDeleteDoc}
           onImportFile={handleImportFile}
           onRenameDoc={handleRenameDoc}

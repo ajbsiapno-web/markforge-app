@@ -40,20 +40,26 @@ export default function AiAgentBar({ isOpen, onClose, onSubmitPrompt, activeProv
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'center',
-        paddingTop: '12vh',
+        paddingTop: '4vh',
+        paddingLeft: 12,
+        paddingRight: 12,
+        overflowY: 'auto',
       }}
       onClick={onClose}
     >
       <Box
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: '90%',
+          width: '100%',
           maxWidth: 640,
           background: 'rgba(20, 24, 36, 0.98)',
           border: '1px solid rgba(139, 92, 246, 0.4)',
           boxShadow: '0 24px 60px rgba(0, 0, 0, 0.8), 0 0 50px rgba(139, 92, 246, 0.3)',
           borderRadius: 20,
           overflow: 'hidden',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
         {/* Header Bar */}
@@ -95,7 +101,7 @@ export default function AiAgentBar({ isOpen, onClose, onSubmitPrompt, activeProv
         </Flex>
 
         {/* Input Form */}
-        <form onSubmit={handleSubmit} style={{ padding: 16 }}>
+        <form onSubmit={handleSubmit} style={{ padding: 16, overflowY: 'auto' }}>
           <Flex gap="2" align="center">
             <TextField.Root
               ref={inputRef}
