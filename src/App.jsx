@@ -13,6 +13,7 @@ import ShareModal from './components/ShareModal';
 import CommentsDrawer from './components/CommentsDrawer';
 import ShortcutsModal from './components/ShortcutsModal';
 import AiSettingsModal from './components/AiSettingsModal';
+import AiAgentBar from './components/AiAgentBar';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { fetchUserDocuments, saveUserDocument, deleteUserDocument } from './lib/documents';
 import { fetchDocumentComments } from './lib/commentsAndShares';
@@ -26,12 +27,12 @@ const WELCOME_MD = `# Welcome to MarkForge ✨
 ## Getting Started
 
 1. **AI Actions**: Choose your AI provider (**OpenAI**, **Anthropic Claude**, **Google Gemini**, or local **Ollama**).
-2. Click the **AI Actions ✦** button in the toolbar to improve, expand, or format your document!
+2. Click **Ask Agent ✦** or press \`Ctrl+K\` to ask the AI Agent to generate flowcharts, diagrams, tables, or math formulas!
 
 ## Features
 
 - 🖊️ **WYSIWYG Editing** — see your Markdown rendered cleanly as you write
-- 🤖 **Multi-Provider AI** — support for OpenAI (GPT-4o), Claude 3.5, Gemini 1.5, & Local Ollama
+- 🤖 **Multi-Provider AI & Agent** — support for OpenAI (GPT-4o), Claude 3.5, Gemini 1.5, & Local Ollama
 - 🧮 **LaTeX Math Formulas** — render complex equations with KaTeX (\`$$\` display & \`$\` inline)
 - 📊 **Flowchart & Diagrams** — write \`\`\`mermaid code blocks to render live SVG diagrams
 - 🔀 **Split View** — side-by-side source editor & live preview
@@ -93,6 +94,7 @@ export default function App() {
   // Modal States
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isAiSettingsOpen, setIsAiSettingsOpen] = useState(false);
+  const [isAgentBarOpen, setIsAgentBarOpen] = useState(false);
   const [findReplaceState, setFindReplaceState] = useState({ isOpen: false, showReplace: false });
 
   // Parse shared URL parameters (e.g. ?title=Finished+Goods+3.0) on app load
@@ -128,6 +130,12 @@ export default function App() {
   // Global keybindings
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setIsAgentBarOpen((prev) => !prev);
+        return;
+      }
+
       if (e.key === '?') {
         const activeTag = document.activeElement?.tagName?.toLowerCase();
         const isEditable = document.activeElement?.isContentEditable || activeTag === 'input' || activeTag === 'textarea';
@@ -538,9 +546,7 @@ export default function App() {
   };
 
   // Multi-Provider AI Prompt Trigger
-  const triggerAI = async (type) => {
-    if (!markdown.trim()) return;
-
+  const triggerAI = async (type, customInstruction = '') => {
     const providerObj = AI_PROVIDERS[activeProvider] || AI_PROVIDERS.ollama;
     const apiKey = getSavedApiKey(activeProvider);
 
@@ -561,17 +567,26 @@ export default function App() {
       structure: 'Restructuring Document...',
       expand: 'Generating Missing Content...',
       convert: 'Converting Text to Markdown...',
+      agent: 'AI Agent Executing Task...',
     };
+
+    const systemContext = `You are an expert AI Markdown Assistant. Follow the user instruction precisely.
+- If asked to generate a flowchart or diagram, write valid \`\`\`mermaid code blocks.
+- If asked to generate a table, use valid Markdown table syntax.
+- If asked to generate math, use $$ formula $$ syntax.
+- Return ONLY clean Markdown text without wrapping in \`\`\`markdown code block fences.`;
 
     const prompts = {
-      fix: `Fix all broken Markdown syntax (tables, lists, code fences, headers) in this document. Return ONLY the clean Markdown text without wrapping in \`\`\`markdown code block fences:\n\n${markdown}`,
-      grammar: `Improve the grammar, clarity, and phrasing of this Markdown document while preserving structure. Return ONLY the clean Markdown text without wrapping in \`\`\`markdown code block fences:\n\n${markdown}`,
-      structure: `Improve the section hierarchy and organization of this Markdown document. Return ONLY the clean Markdown text without wrapping in \`\`\`markdown code block fences:\n\n${markdown}`,
-      expand: `Complete any gaps, TODOs, or placeholder text in this document. Return ONLY the clean Markdown text without wrapping in \`\`\`markdown code block fences:\n\n${markdown}`,
-      convert: `Convert this raw text into clean, well-formatted Markdown with headings, code blocks, and lists. Return ONLY the clean Markdown text without wrapping in \`\`\`markdown code block fences:\n\n${markdown}`,
+      fix: `${systemContext}\n\nFix all broken Markdown syntax in this document:\n\n${markdown}`,
+      grammar: `${systemContext}\n\nImprove the grammar, clarity, and phrasing of this Markdown document:\n\n${markdown}`,
+      structure: `${systemContext}\n\nImprove section hierarchy and organization of this Markdown document:\n\n${markdown}`,
+      expand: `${systemContext}\n\nComplete any gaps or TODOs in this document:\n\n${markdown}`,
+      convert: `${systemContext}\n\nConvert this text into clean Markdown with headings and lists:\n\n${markdown}`,
+      agent: `${systemContext}\n\nUser Request: ${customInstruction}\n\nCurrent Document Context:\n${markdown}`,
     };
 
-    setAiTitle(`${labels[type] || 'AI Processing...'} (${providerObj.name})`);
+    const targetType = type || 'agent';
+    setAiTitle(`${labels[targetType] || 'AI Processing...'} (${providerObj.name})`);
     setAiLoading(true);
     setAiError(null);
     setAiModalOpen(true);
@@ -581,7 +596,7 @@ export default function App() {
         provider: activeProvider,
         model: selectedModel,
         apiKey,
-        prompt: prompts[type] || markdown,
+        prompt: prompts[targetType] || customInstruction || markdown,
       });
 
       const cleanResult = cleanAiMarkdown(rawResult);
@@ -677,6 +692,7 @@ export default function App() {
         onFormatAction={handleFormatAction}
         onHeadingAction={handleHeadingAction}
         onAIFix={triggerAI}
+        onOpenAgentBar={() => setIsAgentBarOpen(true)}
         activeProvider={activeProvider}
         availableModels={availableModels}
         selectedModel={selectedModel}
@@ -728,6 +744,15 @@ export default function App() {
         ollamaStatus={ollamaStatus}
         modelCount={availableModels.length}
         onRefresh={updateProviderModels}
+      />
+
+      {/* Agentic AI Prompt Overlay (Ctrl+K) */}
+      <AiAgentBar
+        isOpen={isAgentBarOpen}
+        onClose={() => setIsAgentBarOpen(false)}
+        onSubmitPrompt={(promptText) => triggerAI('agent', promptText)}
+        activeProvider={activeProvider}
+        selectedModel={selectedModel}
       />
 
       {/* AI Settings Modal */}

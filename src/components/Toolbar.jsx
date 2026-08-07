@@ -28,6 +28,8 @@ import {
   FileText,
   Copy,
   Settings,
+  Bot,
+  Sparkles,
 } from 'lucide-react';
 import { AI_PROVIDERS } from '../lib/aiProviders';
 
@@ -41,6 +43,7 @@ export default function Toolbar({
   onFormatAction,
   onHeadingAction,
   onAIFix,
+  onOpenAgentBar,
   activeProvider,
   availableModels,
   selectedModel,
@@ -56,105 +59,92 @@ export default function Toolbar({
   const providerInfo = AI_PROVIDERS[activeProvider] || AI_PROVIDERS.ollama;
 
   return (
-    <Flex
-      align="center"
-      justify="space-between"
-      px="4"
-      py="2"
-      className="glass-header"
-      style={{ height: 56, flexShrink: 0, gap: 16 }}
-    >
-      {/* File & Sidebar Group */}
-      <Flex align="center" gap="3">
-        <Tooltip content={sidebarOpen ? 'Hide Sidebar' : 'Show Outline & Sidebar'}>
-          <IconButton
-            variant="ghost"
-            color="gray"
-            size="2"
-            onClick={toggleSidebar}
-            style={{
-              color: sidebarOpen ? '#c084fc' : '#94a3b8',
-              backgroundColor: sidebarOpen ? 'rgba(139, 92, 246, 0.12)' : 'transparent',
-              borderRadius: 8,
-              width: 36,
-              height: 36,
-            }}
-          >
-            <LayoutGrid size={18} />
-          </IconButton>
-        </Tooltip>
-
-        <Separator orientation="vertical" size="2" style={{ height: 24, opacity: 0.15 }} />
-
-        <Tooltip content="New File (Ctrl+N)">
-          <IconButton variant="soft" color="gray" size="2" onClick={onNewFile} style={{ width: 36, height: 36, borderRadius: 8 }}>
-            <FilePlus size={17} />
-          </IconButton>
-        </Tooltip>
-
-        <Tooltip content="Open File (Ctrl+O)">
-          <IconButton variant="soft" color="gray" size="2" onClick={onOpenFile} style={{ width: 36, height: 36, borderRadius: 8 }}>
-            <FolderOpen size={17} />
-          </IconButton>
-        </Tooltip>
-
-        <Tooltip content="Save (Ctrl+S)">
-          <IconButton variant="soft" color="violet" size="2" onClick={onSaveFile} style={{ width: 36, height: 36, borderRadius: 8 }}>
-            <Save size={17} />
-          </IconButton>
-        </Tooltip>
-
-        {/* Export Dropdown */}
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger>
-            <Button variant="soft" color="gray" size="2" style={{ height: 36, borderRadius: 8, padding: '0 10px', gap: 6 }}>
-              <Download size={16} /> Export <ChevronDown size={12} />
-            </Button>
-          </DropdownMenu.Trigger>
-
-          <DropdownMenu.Content variant="soft" color="gray" style={{ minWidth: 220, padding: 6, borderRadius: 12 }}>
-            <DropdownMenu.Item onClick={() => onExport?.('pdf')} style={{ padding: '8px 12px', borderRadius: 8, gap: 10, cursor: 'pointer' }}>
-              <Printer size={16} style={{ color: '#c084fc' }} />
-              <Flex direction="column">
-                <span style={{ fontWeight: 500, fontSize: 13 }}>Export to PDF</span>
-                <span style={{ fontSize: 11, color: '#94a3b8' }}>Print / Save as PDF document</span>
-              </Flex>
-            </DropdownMenu.Item>
-
-            <DropdownMenu.Item onClick={() => onExport?.('html')} style={{ padding: '8px 12px', borderRadius: 8, gap: 10, cursor: 'pointer' }}>
-              <FileCode size={16} style={{ color: '#60a5fa' }} />
-              <Flex direction="column">
-                <span style={{ fontWeight: 500, fontSize: 13 }}>Export to HTML</span>
-                <span style={{ fontSize: 11, color: '#94a3b8' }}>Download styled web page</span>
-              </Flex>
-            </DropdownMenu.Item>
-
-            <DropdownMenu.Item onClick={() => onExport?.('md')} style={{ padding: '8px 12px', borderRadius: 8, gap: 10, cursor: 'pointer' }}>
-              <FileText size={16} style={{ color: '#4ade80' }} />
-              <Flex direction="column">
-                <span style={{ fontWeight: 500, fontSize: 13 }}>Download .md File</span>
-                <span style={{ fontSize: 11, color: '#94a3b8' }}>Save raw Markdown source</span>
-              </Flex>
-            </DropdownMenu.Item>
-
-            <DropdownMenu.Separator style={{ margin: '4px 0' }} />
-
-            <DropdownMenu.Item onClick={() => onExport?.('copy-html')} style={{ padding: '8px 12px', borderRadius: 8, gap: 10, cursor: 'pointer' }}>
-              <Copy size={16} style={{ color: '#f43f5e' }} />
-              <Flex direction="column">
-                <span style={{ fontWeight: 500, fontSize: 13 }}>Copy Rendered HTML</span>
-                <span style={{ fontSize: 11, color: '#94a3b8' }}>Copy HTML to clipboard</span>
-              </Flex>
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Root>
-      </Flex>
-
-      <Separator orientation="vertical" size="2" style={{ height: 24, opacity: 0.15 }} />
-
-      {/* Formatting Tools */}
+    <div className="app-toolbar">
+      {/* File & Formatting Group */}
       <Flex align="center" gap="2">
-        <Flex gap="1" align="center" style={{ background: 'rgba(30, 41, 59, 0.4)', padding: 3, borderRadius: 10, border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+        {/* Toggle Sidebar Button */}
+        <Tooltip content={sidebarOpen ? 'Hide Sidebar' : 'Show Sidebar'}>
+          <IconButton variant="ghost" color="gray" size="2" onClick={toggleSidebar} style={{ width: 34, height: 34 }}>
+            <LayoutGrid size={16} />
+          </IconButton>
+        </Tooltip>
+
+        <Separator orientation="vertical" size="2" style={{ height: 20, opacity: 0.15 }} />
+
+        {/* File Actions */}
+        <Flex gap="1">
+          <Tooltip content="New File (Ctrl+N)">
+            <IconButton variant="ghost" color="gray" size="2" onClick={onNewFile} style={{ width: 34, height: 34 }}>
+              <FilePlus size={16} />
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip content="Open File (Ctrl+O)">
+            <IconButton variant="ghost" color="gray" size="2" onClick={onOpenFile} style={{ width: 34, height: 34 }}>
+              <FolderOpen size={16} />
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip content="Save Document (Ctrl+S)">
+            <IconButton variant="ghost" color="gray" size="2" onClick={onSaveFile} style={{ width: 34, height: 34 }}>
+              <Save size={16} />
+            </IconButton>
+          </Tooltip>
+
+          {/* Export Dropdown */}
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger>
+              <Button variant="ghost" color="gray" size="2" style={{ height: 34, padding: '0 8px', borderRadius: 8 }}>
+                <Download size={15} />
+                Export
+                <ChevronDown size={13} />
+              </Button>
+            </DropdownMenu.Trigger>
+
+            <DropdownMenu.Content variant="soft" color="violet" style={{ minWidth: 220, padding: 6, borderRadius: 12 }}>
+              <DropdownMenu.Item onClick={() => onExport('pdf')} style={{ padding: '8px 12px', borderRadius: 8 }}>
+                <Printer size={15} />
+                Export to PDF Document
+              </DropdownMenu.Item>
+
+              <DropdownMenu.Item onClick={() => onExport('html')} style={{ padding: '8px 12px', borderRadius: 8 }}>
+                <FileCode size={15} />
+                Export HTML Webpage (.html)
+              </DropdownMenu.Item>
+
+              <DropdownMenu.Item onClick={() => onExport('md')} style={{ padding: '8px 12px', borderRadius: 8 }}>
+                <FileText size={15} />
+                Download Markdown File (.md)
+              </DropdownMenu.Item>
+
+              <DropdownMenu.Separator style={{ margin: '4px 0' }} />
+
+              <DropdownMenu.Item onClick={() => onExport('copy-html')} style={{ padding: '8px 12px', borderRadius: 8 }}>
+                <Copy size={15} />
+                Copy Rendered HTML to Clipboard
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Root>
+        </Flex>
+
+        <Separator orientation="vertical" size="2" style={{ height: 20, opacity: 0.15 }} />
+
+        {/* Heading Dropdown */}
+        <Select.Root defaultValue="p" onValueChange={onHeadingAction}>
+          <Select.Trigger placeholder="Paragraph" variant="ghost" size="2" style={{ width: 110, height: 34, borderRadius: 8 }} />
+          <Select.Content size="2">
+            <Select.Item value="p">Paragraph</Select.Item>
+            <Select.Item value="h1">Heading 1</Select.Item>
+            <Select.Item value="h2">Heading 2</Select.Item>
+            <Select.Item value="h3">Heading 3</Select.Item>
+            <Select.Item value="h4">Heading 4</Select.Item>
+          </Select.Content>
+        </Select.Root>
+
+        <Separator orientation="vertical" size="2" style={{ height: 20, opacity: 0.15 }} />
+
+        {/* Text Formatting Actions */}
+        <Flex gap="1">
           <Tooltip content="Bold (Ctrl+B)">
             <IconButton variant="ghost" color="gray" size="2" onClick={() => onFormatAction('bold')} style={{ width: 32, height: 32 }}>
               <Bold size={15} />
@@ -178,21 +168,8 @@ export default function Toolbar({
               <Code size={15} />
             </IconButton>
           </Tooltip>
-        </Flex>
 
-        <Select.Root onValueChange={onHeadingAction} defaultValue="">
-          <Select.Trigger placeholder="Heading" variant="soft" color="gray" size="2" style={{ minWidth: 110, height: 36, borderRadius: 8 }} />
-          <Select.Content color="gray" highContrast>
-            <Select.Item value="p">Paragraph</Select.Item>
-            <Select.Item value="h1">Heading 1</Select.Item>
-            <Select.Item value="h2">Heading 2</Select.Item>
-            <Select.Item value="h3">Heading 3</Select.Item>
-            <Select.Item value="h4">Heading 4</Select.Item>
-          </Select.Content>
-        </Select.Root>
-
-        <Flex gap="1" align="center" style={{ background: 'rgba(30, 41, 59, 0.4)', padding: 3, borderRadius: 10, border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-          <Tooltip content="Bullet List">
+          <Tooltip content="Unordered List">
             <IconButton variant="ghost" color="gray" size="2" onClick={() => onFormatAction('ul')} style={{ width: 32, height: 32 }}>
               <List size={15} />
             </IconButton>
@@ -232,7 +209,7 @@ export default function Toolbar({
 
       <Separator orientation="vertical" size="2" style={{ height: 24, opacity: 0.15 }} />
 
-      {/* Collaboration, View Switcher & AI Actions */}
+      {/* Collaboration, View Switcher & AI Agent Actions */}
       <Flex align="center" gap="3">
         {/* Share Button */}
         <Tooltip content="Share Document">
@@ -345,6 +322,13 @@ export default function Toolbar({
           </button>
         </div>
 
+        {/* Dedicated Ask AI Agent Button */}
+        <Tooltip content="Ask AI Agent (Ctrl+K)">
+          <Button variant="soft" color="violet" size="2" onClick={onOpenAgentBar} style={{ height: 38, borderRadius: 10, cursor: 'pointer' }}>
+            <Bot size={16} /> Ask Agent ✦
+          </Button>
+        </Tooltip>
+
         {/* AI Actions Dropdown */}
         <DropdownMenu.Root>
           <DropdownMenu.Trigger>
@@ -355,7 +339,20 @@ export default function Toolbar({
             </Button>
           </DropdownMenu.Trigger>
 
-          <DropdownMenu.Content variant="soft" color="violet" style={{ minWidth: 280, padding: 8, borderRadius: 12 }}>
+          <DropdownMenu.Content variant="soft" color="violet" style={{ minWidth: 290, padding: 8, borderRadius: 12 }}>
+            <DropdownMenu.Item
+              onClick={onOpenAgentBar}
+              style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(139, 92, 246, 0.15)', color: '#c084fc', fontWeight: 'bold' }}
+            >
+              <Bot size={15} />
+              Ask AI Agent (Custom Prompt)
+              <Badge color="violet" variant="solid" size="1" style={{ marginLeft: 'auto' }}>
+                Ctrl+K
+              </Badge>
+            </DropdownMenu.Item>
+
+            <DropdownMenu.Separator style={{ margin: '6px 0' }} />
+
             <DropdownMenu.Item onClick={() => onAIFix('fix')} style={{ padding: '8px 12px', borderRadius: 8 }}>
               <Wand2 size={15} />
               Fix Markdown Syntax
@@ -423,18 +420,17 @@ export default function Toolbar({
                     )}
                   </Select.Content>
                 </Select.Root>
-                {activeProvider === 'ollama' && (
-                  <Tooltip content="Refresh Ollama Models">
-                    <IconButton size="1" variant="ghost" color="gray" onClick={onRefreshModels} style={{ width: 28, height: 28 }}>
-                      <RotateCw size={13} />
-                    </IconButton>
-                  </Tooltip>
-                )}
+
+                <Tooltip content="Refresh model list">
+                  <IconButton size="1" variant="ghost" color="gray" onClick={onRefreshModels} style={{ width: 24, height: 24 }}>
+                    <RotateCw size={13} />
+                  </IconButton>
+                </Tooltip>
               </Flex>
             </Flex>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
       </Flex>
-    </Flex>
+    </div>
   );
 }
