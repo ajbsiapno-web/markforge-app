@@ -138,15 +138,11 @@ export default function Editor({
       highlightWysiwygMatch(wysiwygRef.current, findText, isCaseSensitive, matchIndex);
     } else if ((mode === 'source' || mode === 'split') && sourceRef.current) {
       const ta = sourceRef.current;
+      ta.focus();
       ta.setSelectionRange(currentMatch.start, currentMatch.end);
-      const textBefore = markdown.substring(0, currentMatch.start);
-      const lineNum = textBefore.split('\n').length;
-      const approxLineHeight = 25;
-      ta.scrollTop = Math.max(0, (lineNum - 4) * approxLineHeight);
     }
-  }, [matchIndex, matches, findOpen, findText, isCaseSensitive, mode, markdown]);
+  }, [findOpen, findText, isCaseSensitive, matchIndex, matches, mode]);
 
-  // Navigation handlers
   const handleNextMatch = () => {
     if (matches.length === 0) return;
     setMatchIndex((prev) => (prev + 1) % matches.length);
@@ -241,14 +237,21 @@ export default function Editor({
     // 2. Add hover copy buttons to code blocks
     addCopyButtons(container);
 
-    // 2. Render Mermaid Flowcharts & Diagrams into SVGs
-    const mermaidBlocks = container.querySelectorAll('pre code.language-mermaid, pre code.language-flowchart');
+    // 3. Render Mermaid Flowcharts & Diagrams into SVGs
+    const mermaidBlocks = container.querySelectorAll(
+      'pre code.language-mermaid, pre code.language-flowchart, pre.language-mermaid, code.language-mermaid, pre.language-flowchart'
+    );
+
     for (let i = 0; i < mermaidBlocks.length; i++) {
       const block = mermaidBlocks[i];
-      const pre = block.parentElement;
+      const pre = block.tagName?.toLowerCase() === 'pre' ? block : block.parentElement;
       if (!pre || pre.dataset.renderedMermaid) continue;
 
-      const code = block.textContent;
+      let code = block.textContent || '';
+      code = code.replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&').trim();
+
+      if (!code) continue;
+
       const uniqueId = `mermaid_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
 
       try {
@@ -263,7 +266,7 @@ export default function Editor({
         wrapper.style.padding = '24px';
         wrapper.style.margin = '1.8em 0';
         wrapper.style.background = '#090b11';
-        wrapper.style.border = '1px solid rgba(139, 92, 246, 0.2)';
+        wrapper.style.border = '1px solid rgba(139, 92, 246, 0.3)';
         wrapper.style.borderRadius = '12px';
         wrapper.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
         wrapper.innerHTML = svg;
@@ -334,100 +337,130 @@ export default function Editor({
   }, []);
 
   return (
-    <Box style={{ flex: 1, height: '100%', overflow: 'hidden', position: 'relative' }}>
+    <Box style={{ flex: 1, height: '100%', position: 'relative', overflow: 'hidden' }}>
       {/* Floating Find & Replace Bar */}
       <FindReplaceBar
         isOpen={findOpen}
-        showReplace={showReplace}
+        onClose={handleCloseBar}
         findText={findText}
+        setFindText={setFindText}
         replaceText={replaceText}
-        onFindChange={(val) => {
-          setFindText(val);
-          setMatchIndex(0);
-        }}
-        onReplaceChange={setReplaceText}
+        setReplaceText={setReplaceText}
+        isCaseSensitive={isCaseSensitive}
+        setIsCaseSensitive={setIsCaseSensitive}
+        matchCount={matches.length}
         matchIndex={matchIndex}
-        totalMatches={matches.length}
         onNext={handleNextMatch}
         onPrev={handlePrevMatch}
         onReplace={handleReplace}
         onReplaceAll={handleReplaceAll}
-        onClose={handleCloseBar}
-        onToggleReplace={() => setShowReplace((prev) => !prev)}
-        isCaseSensitive={isCaseSensitive}
-        onToggleCaseSensitive={() => {
-          setIsCaseSensitive((prev) => !prev);
-          setMatchIndex(0);
-        }}
+        showReplace={showReplace}
+        setShowReplace={setShowReplace}
         findInputRef={findInputRef}
         replaceInputRef={replaceInputRef}
       />
 
-      {/* WYSIWYG View */}
+      {/* WYSIWYG Mode */}
       {mode === 'wysiwyg' && (
-        <Box style={{ height: '100%', overflowY: 'auto' }}>
+        <Box style={{ height: '100%', overflowY: 'auto', padding: '40px 60px' }}>
           <div
             ref={wysiwygRef}
-            className="prose-editor"
             contentEditable
             suppressContentEditableWarning
+            className="wysiwyg-editor"
             onInput={handleWysiwygInput}
-            data-placeholder="Start typing in Markdown..."
+            style={{
+              minHeight: '100%',
+              outline: 'none',
+              fontSize: 16,
+              lineHeight: 1.7,
+              color: '#e2e8f0',
+              maxWidth: 900,
+              margin: '0 auto',
+            }}
           />
         </Box>
       )}
 
-      {/* Source View */}
+      {/* Source Code Mode */}
       {mode === 'source' && (
-        <Box style={{ height: '100%', overflowY: 'auto', background: '#0b0d14' }}>
-          <div className="source-wrapper">
-            <textarea
-              ref={sourceRef}
-              className="source-editor"
-              value={markdown}
-              onChange={handleSourceChange}
-              onKeyDown={handleKeyDown}
-              placeholder="# Type your Markdown here..."
-              spellCheck={false}
-            />
-          </div>
-        </Box>
+        <textarea
+          ref={sourceRef}
+          value={markdown}
+          onChange={handleSourceChange}
+          onKeyDown={handleKeyDown}
+          className="source-editor"
+          placeholder="Type Markdown source here..."
+          style={{
+            width: '100%',
+            height: '100%',
+            background: '#090b11',
+            color: '#f8fafc',
+            border: 'none',
+            outline: 'none',
+            padding: 32,
+            fontFamily: '"JetBrains Mono", monospace',
+            fontSize: 14,
+            lineHeight: 1.6,
+            resize: 'none',
+            boxSizing: 'border-box',
+          }}
+        />
       )}
 
-      {/* Split View */}
+      {/* Split Mode */}
       {mode === 'split' && (
-        <Flex style={{ height: '100%', width: '100%' }}>
-          <Box style={{ width: `${splitRatio}%`, height: '100%', overflowY: 'auto', background: '#0b0d14' }}>
+        <Flex style={{ width: '100%', height: '100%', position: 'relative' }}>
+          <Box style={{ width: `${splitRatio}%`, height: '100%' }}>
             <textarea
               ref={sourceRef}
-              className="source-editor-split"
               value={markdown}
               onChange={handleSourceChange}
               onKeyDown={handleKeyDown}
-              placeholder="# Type Markdown here..."
-              spellCheck={false}
+              className="source-editor"
+              placeholder="Type Markdown source here..."
+              style={{
+                width: '100%',
+                height: '100%',
+                background: '#090b11',
+                color: '#f8fafc',
+                border: 'none',
+                outline: 'none',
+                padding: 24,
+                fontFamily: '"JetBrains Mono", monospace',
+                fontSize: 14,
+                lineHeight: 1.6,
+                resize: 'none',
+                boxSizing: 'border-box',
+              }}
             />
           </Box>
 
-          {/* Resizable Divider */}
+          {/* Split Drag Divider */}
           <div
             onMouseDown={handleMouseDown}
             style={{
               width: 6,
+              height: '100%',
+              background: 'rgba(255, 255, 255, 0.08)',
               cursor: 'col-resize',
-              backgroundColor: 'rgba(255, 255, 255, 0.08)',
-              transition: 'background-color 0.15s',
               zIndex: 10,
-              flexShrink: 0,
+              transition: 'background 0.2s ease',
             }}
-            onMouseEnter={(e) => (e.target.style.backgroundColor = '#7c3aed')}
-            onMouseLeave={(e) => {
-              if (!isDragging.current) e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
-            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#8b5cf6')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)')}
           />
 
-          <Box style={{ width: `${100 - splitRatio}%`, height: '100%', overflowY: 'auto', background: '#07090e' }}>
-            <div ref={previewRef} className="prose-preview-split" />
+          <Box style={{ flex: 1, height: '100%', overflowY: 'auto', padding: 24, background: '#0d1117' }}>
+            <div
+              ref={previewRef}
+              className="markdown-preview"
+              style={{
+                fontSize: 15,
+                lineHeight: 1.7,
+                color: '#e2e8f0',
+              }}
+            />
           </Box>
         </Flex>
       )}
@@ -435,104 +468,68 @@ export default function Editor({
   );
 }
 
-// Helper: Highlight match in WYSIWYG contentEditable node
+// Convert HTML innerHTML back to Markdown
+function htmlToMarkdown(html) {
+  if (!html) return '';
+  let md = html;
+
+  // Convert rendered Mermaid wrappers back to ```mermaid blocks
+  md = md.replace(/<div class="mermaid-diagram-container"[^>]*>[\s\S]*?<\/div>/gi, '');
+
+  md = md
+    .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n')
+    .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n')
+    .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n')
+    .replace(/<h4[^>]*>(.*?)<\/h4>/gi, '#### $1\n\n')
+    .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
+    .replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**')
+    .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
+    .replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*')
+    .replace(/<del[^>]*>(.*?)<\/del>/gi, '~~$1~~')
+    .replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
+    .replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gi, '> $1\n\n')
+    .replace(/<hr\s*\/?>/gi, '\n---\n\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
+    .replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n')
+    .replace(/<ul[^>]*>(.*?)<\/ul>/gi, '$1\n')
+    .replace(/<ol[^>]*>(.*?)<\/ol>/gi, '$1\n')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&amp;/gi, '&');
+
+  return md.trim();
+}
+
+// Helper to highlight search matches inside WYSIWYG innerHTML
 function highlightWysiwygMatch(container, query, caseSensitive, targetIndex) {
   if (!container || !query) return;
-
-  const textNodes = [];
+  const nodes = [];
   const walk = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
-  let node;
-  while ((node = walk.nextNode())) {
-    textNodes.push(node);
+  let n;
+  while ((n = walk.nextNode())) {
+    nodes.push(n);
   }
 
-  let matchCounter = 0;
-  const lowerQuery = caseSensitive ? query : query.toLowerCase();
-
-  for (const tNode of textNodes) {
-    const nodeText = caseSensitive ? tNode.nodeValue : tNode.nodeValue.toLowerCase();
-    let idx = nodeText.indexOf(lowerQuery);
-    while (idx !== -1) {
-      if (matchCounter === targetIndex) {
-        try {
-          const range = document.createRange();
-          range.setStart(tNode, idx);
-          range.setEnd(tNode, idx + query.length);
-          const sel = window.getSelection();
-          sel.removeAllRanges();
-          sel.addRange(range);
-          tNode.parentElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } catch (err) {
-          console.warn('Wysiwyg selection error:', err);
-        }
-        return;
-      }
-      matchCounter++;
-      idx = nodeText.indexOf(lowerQuery, idx + 1);
-    }
-  }
-}
-
-// Lightweight HTML -> Markdown parser
-function htmlToMarkdown(html) {
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  return nodeToMarkdown(tmp).trim();
-}
-
-function nodeToMarkdown(node) {
-  let result = '';
-  for (const child of node.childNodes) {
-    if (child.nodeType === Node.TEXT_NODE) {
-      result += child.textContent;
-    } else if (child.nodeType === Node.ELEMENT_NODE) {
-      if (child.classList?.contains('code-copy-btn') || child.tagName?.toLowerCase() === 'button') {
-        continue;
-      }
-      const tag = child.tagName.toLowerCase();
-      const inner = nodeToMarkdown(child);
-      switch (tag) {
-        case 'h1': result += `\n# ${inner}\n\n`; break;
-        case 'h2': result += `\n## ${inner}\n\n`; break;
-        case 'h3': result += `\n### ${inner}\n\n`; break;
-        case 'h4': result += `\n#### ${inner}\n\n`; break;
-        case 'h5': result += `\n##### ${inner}\n\n`; break;
-        case 'h6': result += `\n###### ${inner}\n\n`; break;
-        case 'p':  result += `${inner}\n\n`; break;
-        case 'strong': case 'b': result += `**${inner}**`; break;
-        case 'em': case 'i':    result += `*${inner}*`; break;
-        case 's':  case 'del':  result += `~~${inner}~~`; break;
-        case 'code':
-          if (child.parentElement?.tagName === 'PRE') {
-            result += inner;
-          } else {
-            result += '`' + inner + '`';
-          }
-          break;
-        case 'pre': {
-          const lang = child.querySelector('code')?.className?.replace(/.*language-/, '') || '';
-          result += `\n\`\`\`${lang}\n${inner}\n\`\`\`\n\n`;
-          break;
-        }
-        case 'blockquote': result += inner.split('\n').map(l => `> ${l}`).join('\n') + '\n\n'; break;
-        case 'ul': result += inner.split('\n').filter(Boolean).map(l => `- ${l}`).join('\n') + '\n\n'; break;
-        case 'ol': {
-          let i = 1;
-          for (const li of child.children) {
-            result += `${i}. ${nodeToMarkdown(li)}\n`;
-            i++;
-          }
-          result += '\n';
-          break;
-        }
-        case 'li': result += inner + '\n'; break;
-        case 'a':  result += `[${inner}](${child.getAttribute('href') || ''})`; break;
-        case 'img': result += `![${child.getAttribute('alt') || ''}](${child.getAttribute('src') || ''})`; break;
-        case 'hr': result += '\n---\n\n'; break;
-        case 'br': result += '\n'; break;
-        default:   result += inner;
+  let count = 0;
+  nodes.forEach((textNode) => {
+    const text = textNode.nodeValue;
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const flags = caseSensitive ? 'g' : 'gi';
+    const regex = new RegExp(escaped, flags);
+    if (regex.test(text)) {
+      const span = document.createElement('span');
+      span.innerHTML = text.replace(regex, (match) => {
+        const isCurrent = count === targetIndex;
+        count++;
+        const bg = isCurrent ? '#f59e0b' : 'rgba(245, 158, 11, 0.4)';
+        const color = isCurrent ? '#000' : '#fff';
+        return `<mark style="background:${bg}; color:${color}; padding: 0 2px; border-radius: 3px;">${match}</mark>`;
+      });
+      if (textNode.parentNode) {
+        textNode.parentNode.replaceChild(span, textNode);
       }
     }
-  }
-  return result;
+  });
 }

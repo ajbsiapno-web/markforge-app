@@ -37,20 +37,25 @@ export const AI_PROVIDERS = {
   },
 };
 
-// Clean raw markdown output from code block wrappers (e.g. ```markdown ... ```)
+// Clean raw markdown output and ensure Mermaid diagram blocks are properly wrapped
 export function cleanAiMarkdown(text) {
   if (!text) return '';
   let cleaned = text.trim();
 
-  // Strip leading ```markdown or ```md or ``` and trailing ```
-  if (/^```(?:markdown|md)?\s*\n/i.test(cleaned)) {
-    cleaned = cleaned.replace(/^```(?:markdown|md)?\s*\n/i, '');
-  }
-  if (/\n?\s*```$/i.test(cleaned)) {
-    cleaned = cleaned.replace(/\n?\s*```$/i, '');
+  // 1. Strip outer ```markdown ... ``` or ```md ... ``` wrapper if present
+  if (/^```(?:markdown|md)\s*\n/i.test(cleaned) && /\n\s*```$/i.test(cleaned)) {
+    cleaned = cleaned.replace(/^```(?:markdown|md)\s*\n/i, '').replace(/\n\s*```$/i, '');
   }
 
-  return cleaned.trim();
+  cleaned = cleaned.trim();
+
+  // 2. If text starts with Mermaid diagram syntax but is missing ```mermaid fences, auto-wrap it!
+  const isMermaidSyntax = /^(flowchart|graph|sequenceDiagram|classDiagram|gantt|erDiagram|journey|pie|stateDiagram|architecture)\b/i.test(cleaned);
+  if (isMermaidSyntax && !cleaned.startsWith('```')) {
+    cleaned = `\`\`\`mermaid\n${cleaned}\n\`\`\``;
+  }
+
+  return cleaned;
 }
 
 // Key Management helpers
@@ -97,7 +102,7 @@ async function callOllama(model, prompt) {
   const selectedModel = model || 'qwen2.5:0.5b';
   const payload = {
     model: selectedModel,
-    prompt: `${prompt}\n\nIMPORTANT: Return ONLY raw, valid Markdown text. Do NOT wrap your output in \`\`\`markdown code block fences.`,
+    prompt: `${prompt}\n\nIMPORTANT: If generating a flowchart or diagram, output valid Mermaid syntax (e.g. \`\`\`mermaid\\nflowchart TD\\n ...\\n\`\`\`). Do NOT wrap in \`\`\`markdown.`,
     stream: false,
     options: {
       temperature: 0.2,
@@ -107,7 +112,7 @@ async function callOllama(model, prompt) {
 
   const tryGenerate = async (url) => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25-second safety timeout
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
 
     try {
       const response = await fetch(url, {
@@ -154,7 +159,7 @@ async function callOpenAI(apiKey, model, prompt) {
     body: JSON.stringify({
       model: model || 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: 'You are a Markdown editor assistant. Return ONLY clean Markdown text without wrapping code blocks (do NOT use ```markdown).' },
+        { role: 'system', content: 'You are a Markdown editor assistant. If generating a flowchart or diagram, write valid ```mermaid syntax. Do NOT wrap output in ```markdown.' },
         { role: 'user', content: prompt }
       ],
       temperature: 0.2,
@@ -186,7 +191,7 @@ async function callAnthropic(apiKey, model, prompt) {
       model: model || 'claude-3-5-sonnet-20240620',
       max_tokens: 4096,
       messages: [
-        { role: 'user', content: `${prompt}\n\nReturn ONLY the clean Markdown output. Do NOT wrap output in \`\`\`markdown code fences.` }
+        { role: 'user', content: `${prompt}\n\nIf generating a flowchart or diagram, write valid \`\`\`mermaid syntax. Do NOT wrap output in \`\`\`markdown.` }
       ],
     }),
   });
@@ -211,7 +216,7 @@ async function callGemini(apiKey, model, prompt) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: `${prompt}\n\nReturn ONLY valid Markdown text without \`\`\`markdown fences.` }] }],
+      contents: [{ parts: [{ text: `${prompt}\n\nIf generating a flowchart or diagram, write valid \`\`\`mermaid syntax. Do NOT wrap output in \`\`\`markdown.` }] }],
     }),
   });
 
