@@ -9,7 +9,7 @@ export const AI_PROVIDERS = {
     name: 'Local Ollama',
     icon: '💻',
     requiresKey: false,
-    defaultModels: ['llama3:latest', 'mistral', 'codellama', 'gemma'],
+    defaultModels: ['qwen2.5:0.5b', 'llama3:latest', 'mistral', 'codellama'],
   },
   openai: {
     id: 'openai',
@@ -67,7 +67,7 @@ export async function executeAiPrompt({ provider, model, apiKey, prompt }) {
   }
 }
 
-// 1. Ollama (Local) Call
+// 1. Ollama (Local) Call with Thread Optimization & Endpoint Fallback
 async function callOllama(model, prompt) {
   if (window.electronAPI?.ollamaCall) {
     const res = await window.electronAPI.ollamaCall({ prompt, model });
@@ -75,15 +75,41 @@ async function callOllama(model, prompt) {
     throw new Error(res.error || 'Ollama Electron call failed');
   }
 
-  const response = await fetch('http://localhost:11434/api/generate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, prompt, stream: false }),
-  });
+  const payload = {
+    model: model || 'qwen2.5:0.5b',
+    prompt,
+    stream: false,
+    options: {
+      temperature: 0.2,
+      num_thread: 8,
+    },
+  };
 
-  if (!response.ok) throw new Error(`Ollama HTTP Error: ${response.statusText}`);
-  const data = await response.json();
-  return (data.response || '').trim();
+  const tryGenerate = async (url) => {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return (data.response || '').trim();
+      }
+    } catch (e) {
+      return null;
+    }
+    return null;
+  };
+
+  let result = await tryGenerate('http://localhost:11434/api/generate');
+  if (!result) {
+    result = await tryGenerate('http://127.0.0.1:11434/api/generate');
+  }
+
+  if (result) return result;
+  throw new Error('Ollama generation failed. Make sure Ollama server is running locally on port 11434.');
 }
 
 // 2. OpenAI Call
@@ -109,7 +135,7 @@ async function callOpenAI(apiKey, model, prompt) {
   }
 
   const data = await response.json();
-  return data.choices?.[0]?.message?.content?.trim() || '';
+  return (data.choices?.[0]?.message?.content || '').trim();
 }
 
 // 3. Anthropic Claude Call
@@ -137,15 +163,15 @@ async function callAnthropic(apiKey, model, prompt) {
   }
 
   const data = await response.json();
-  return data.content?.[0]?.text?.trim() || '';
+  return (data.content?.[0]?.text || '').trim();
 }
 
 // 4. Google Gemini Call
 async function callGemini(apiKey, model, prompt) {
   if (!apiKey) throw new Error('Google Gemini API Key is required. Please set your key in AI Settings.');
 
-  const selectedModel = model || 'gemini-1.5-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+  const targetModel = model || 'gemini-1.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`;
 
   const response = await fetch(url, {
     method: 'POST',
@@ -161,5 +187,6 @@ async function callGemini(apiKey, model, prompt) {
   }
 
   const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  return text.trim();
 }
