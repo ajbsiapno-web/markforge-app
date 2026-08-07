@@ -38,11 +38,10 @@ export default function Sidebar({
 
   const stats = useMemo(() => {
     const text = markdown || '';
-    const words = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
-    const readingTime = Math.max(1, Math.ceil(words / 200));
-    const paragraphs = text.split(/\n\s*\n/).filter((p) => p.trim().length > 0).length;
-
-    return { words, readingTime, paragraphs };
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    const chars = text.length;
+    const readTime = Math.ceil(words / 200);
+    return { words, chars, readTime };
   }, [markdown]);
 
   if (!isOpen) return null;
@@ -71,172 +70,169 @@ export default function Sidebar({
   };
 
   return (
-    <Box
-      className="glass-pane"
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      style={{
-        width: 280,
-        height: '100%',
-        borderRight: '1px solid rgba(255, 255, 255, 0.08)',
-        display: 'flex',
-        flexDirection: 'column',
-        flexShrink: 0,
-        userSelect: 'none',
-        zIndex: 20,
-        position: 'relative',
-        background: isDragOverSidebar ? 'rgba(124, 58, 237, 0.15)' : undefined,
-        transition: 'background 0.2s ease',
-      }}
-    >
-      {/* Drag & Drop Visual Overlay on Sidebar */}
-      {isDragOverSidebar && (
-        <Flex
-          direction="column"
-          align="center"
-          justify="center"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.92)',
-            backdropFilter: 'blur(8px)',
-            zIndex: 30,
-            border: '2px dashed #a78bfa',
-            borderRadius: 8,
-            pointerEvents: 'none',
-          }}
-        >
-          <UploadCloud size={40} style={{ color: '#c084fc', marginBottom: 10 }} />
-          <Text size="2" weight="bold" style={{ color: '#f8fafc' }}>
-            Drop File Here
-          </Text>
-          <Text size="1" style={{ color: '#94a3b8', marginTop: 4 }}>
-            Import into Cloud Documents
-          </Text>
+    <>
+      {/* Mobile Backdrop Overlay */}
+      <div className="mobile-sidebar-backdrop" />
+
+      <Box
+        className="glass-pane app-sidebar"
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        style={{
+          width: 280,
+          height: '100%',
+          borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+          display: 'flex',
+          flexDirection: 'column',
+          flexShrink: 0,
+          userSelect: 'none',
+          zIndex: 20,
+          position: 'relative',
+          background: isDragOverSidebar ? 'rgba(124, 58, 237, 0.15)' : undefined,
+          transition: 'background 0.2s ease',
+        }}
+      >
+        {/* Drag & Drop Visual Overlay on Sidebar */}
+        {isDragOverSidebar && (
+          <Flex
+            direction="column"
+            align="center"
+            justify="center"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.92)',
+              backdropFilter: 'blur(8px)',
+              zIndex: 30,
+              border: '2px dashed #a78bfa',
+              borderRadius: 8,
+              pointerEvents: 'none',
+            }}
+          >
+            <UploadCloud size={40} style={{ color: '#c084fc', marginBottom: 10 }} />
+            <Text size="2" weight="bold" style={{ color: '#f8fafc' }}>
+              Drop File Here
+            </Text>
+            <Text size="1" style={{ color: '#94a3b8', marginTop: 4 }}>
+              Import into Cloud Documents
+            </Text>
+          </Flex>
+        )}
+
+        {/* Tab Switcher Header */}
+        <Flex p="2" gap="1" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
+          <Button
+            size="2"
+            variant={activeTab === 'files' ? 'solid' : 'ghost'}
+            color={activeTab === 'files' ? 'violet' : 'gray'}
+            onClick={() => setActiveTab('files')}
+            style={{ flex: 1, borderRadius: 8, cursor: 'pointer' }}
+          >
+            <Cloud size={15} /> My Files
+          </Button>
+
+          <Button
+            size="2"
+            variant={activeTab === 'outline' ? 'solid' : 'ghost'}
+            color={activeTab === 'outline' ? 'violet' : 'gray'}
+            onClick={() => setActiveTab('outline')}
+            style={{ flex: 1, borderRadius: 8, cursor: 'pointer' }}
+          >
+            <List size={15} /> Outline
+          </Button>
         </Flex>
-      )}
 
-      {/* Tab Switcher Header */}
-      <Flex p="2" gap="1" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
-        <Button
-          size="2"
-          variant={activeTab === 'files' ? 'solid' : 'ghost'}
-          color={activeTab === 'files' ? 'violet' : 'gray'}
-          onClick={() => setActiveTab('files')}
-          style={{ flex: 1, borderRadius: 8, cursor: 'pointer' }}
-        >
-          <Cloud size={15} /> My Files
-        </Button>
-
-        <Button
-          size="2"
-          variant={activeTab === 'outline' ? 'solid' : 'ghost'}
-          color={activeTab === 'outline' ? 'violet' : 'gray'}
-          onClick={() => setActiveTab('outline')}
-          style={{ flex: 1, borderRadius: 8, cursor: 'pointer' }}
-        >
-          <List size={15} /> Outline
-        </Button>
-      </Flex>
-
-      {/* Main Tab Content */}
-      <Box style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
-        {/* FILES TAB */}
+        {/* Tab Content 1: Files */}
         {activeTab === 'files' && (
-          <Flex direction="column" gap="3">
-            <Flex align="center" justify="space-between" px="1">
-              <Text size="1" weight="bold" style={{ color: '#94a3b8', letterSpacing: '0.5px' }}>
-                CLOUD DOCUMENTS ({userDocs?.length || 0})
+          <Box p="3" style={{ flex: 1, overflowY: 'auto' }}>
+            <Flex align="center" justify="space-between" mb="3">
+              <Text size="1" weight="bold" style={{ color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Cloud Documents
               </Text>
-              <Flex gap="1">
-                <Tooltip content="Import File (.md)">
-                  <IconButton size="1" variant="ghost" color="violet" onClick={() => document.getElementById('markforge-file-input')?.click()}>
-                    <UploadCloud size={15} />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip content="New File">
-                  <IconButton size="1" variant="ghost" color="violet" onClick={onNewDoc}>
-                    <FolderPlus size={15} />
-                  </IconButton>
-                </Tooltip>
-              </Flex>
+              <Tooltip content="Create New Cloud File">
+                <IconButton size="1" variant="soft" color="violet" onClick={onNewDoc} style={{ width: 26, height: 26, borderRadius: 6 }}>
+                  <FolderPlus size={14} />
+                </IconButton>
+              </Tooltip>
             </Flex>
 
-            {userDocs?.length === 0 ? (
-              <Box p="4" style={{ textAlign: 'center', color: '#64748b' }}>
-                <FileText size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
-                <Text size="2" color="gray">
-                  No saved cloud files yet.
-                  <br /> Save your document (Ctrl+S) or drag & drop a file here!
+            {userDocs.length === 0 ? (
+              <Box p="4" style={{ textAlign: 'center', background: 'rgba(30, 41, 59, 0.3)', borderRadius: 10 }}>
+                <Cloud size={32} style={{ color: '#64748b', marginBottom: 8 }} />
+                <Text size="2" weight="medium" style={{ color: '#cbd5e1', display: 'block' }}>
+                  No Cloud Files Yet
+                </Text>
+                <Text size="1" color="gray" style={{ display: 'block', marginTop: 4 }}>
+                  Files saved while logged in will automatically sync here.
                 </Text>
               </Box>
             ) : (
               <Flex direction="column" gap="2">
                 {userDocs.map((doc) => {
-                  const isActive = activeDocId === doc.id;
-                  const formattedDate = new Date(doc.updated_at).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                  });
+                  const isActive = doc.id === activeDocId;
 
                   return (
                     <Card
                       key={doc.id}
-                      variant="surface"
                       onClick={() => onSelectDoc(doc)}
                       style={{
-                        background: isActive ? 'rgba(139, 92, 246, 0.15)' : 'rgba(30, 41, 59, 0.4)',
-                        border: isActive ? '1px solid #8b5cf6' : '1px solid rgba(255, 255, 255, 0.06)',
-                        cursor: 'pointer',
                         padding: '10px 12px',
                         borderRadius: 10,
+                        cursor: 'pointer',
+                        background: isActive ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(192, 132, 252, 0.15))' : 'rgba(30, 41, 59, 0.4)',
+                        border: isActive ? '1px solid rgba(167, 139, 250, 0.5)' : '1px solid rgba(255, 255, 255, 0.05)',
                         transition: 'all 0.15s ease',
                       }}
                     >
                       <Flex align="center" justify="space-between">
-                        <Flex align="center" gap="2" style={{ overflow: 'hidden' }}>
+                        <Flex align="center" gap="2" style={{ flex: 1, minWidth: 0 }}>
                           <FileText size={16} color={isActive ? '#c084fc' : '#94a3b8'} />
                           <Text
                             size="2"
-                            weight={isActive ? 'bold' : 'medium'}
-                            style={{ color: isActive ? '#f8fafc' : '#cbd5e1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                            weight={isActive ? 'bold' : 'regular'}
+                            style={{
+                              color: isActive ? '#ffffff' : '#cbd5e1',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
                           >
-                            {doc.title}
+                            {doc.title || 'Untitled.md'}
                           </Text>
                         </Flex>
 
                         <Flex align="center" gap="1">
-                          <Tooltip content="Rename">
+                          <Tooltip content="Rename Document">
                             <IconButton
                               size="1"
                               variant="ghost"
                               color="gray"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const newTitle = prompt('Rename document:', doc.title);
-                                if (newTitle && newTitle.trim() && newTitle.trim() !== doc.title) {
+                                const newTitle = prompt('Enter new document name:', doc.title || 'Untitled.md');
+                                if (newTitle && newTitle.trim()) {
                                   onRenameDoc(doc.id, newTitle.trim());
                                 }
                               }}
+                              style={{ width: 22, height: 22, opacity: 0.7 }}
                             >
-                              <Pencil size={13} color="#94a3b8" />
+                              <Pencil size={12} />
                             </IconButton>
                           </Tooltip>
 
-                          <Tooltip content="Delete">
+                          <Tooltip content="Delete File">
                             <IconButton
                               size="1"
                               variant="ghost"
                               color="red"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (confirm(`Delete "${doc.title}"?`)) {
-                                  onDeleteDoc(doc.id);
-                                }
+                                if (confirm(`Delete "${doc.title}"?`)) onDeleteDoc(doc.id);
                               }}
+                              style={{ width: 22, height: 22, opacity: 0.7 }}
                             >
-                              <Trash2 size={13} />
+                              <Trash2 size={12} />
                             </IconButton>
                           </Tooltip>
                         </Flex>
@@ -246,84 +242,76 @@ export default function Sidebar({
                 })}
               </Flex>
             )}
-
-            {/* Drag & Drop Hint */}
-            <Box
-              style={{
-                border: '1px dashed rgba(255, 255, 255, 0.12)',
-                borderRadius: 8,
-                padding: '10px 12px',
-                textAlign: 'center',
-                marginTop: 8,
-                background: 'rgba(255, 255, 255, 0.02)',
-              }}
-            >
-              <Text size="1" style={{ color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                <UploadCloud size={14} color="#8b5cf6" /> Drag & drop .md files to import
-              </Text>
-            </Box>
-          </Flex>
+          </Box>
         )}
 
-        {/* OUTLINE TAB */}
+        {/* Tab Content 2: Document Outline */}
         {activeTab === 'outline' && (
-          <Flex direction="column" gap="2">
-            <Text size="1" weight="bold" px="1" style={{ color: '#94a3b8', letterSpacing: '0.5px' }}>
-              DOCUMENT HEADINGS ({headings.length})
+          <Box p="3" style={{ flex: 1, overflowY: 'auto' }}>
+            <Text size="1" weight="bold" style={{ color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 12 }}>
+              Table of Contents
             </Text>
 
             {headings.length === 0 ? (
-              <Box p="4" style={{ textAlign: 'center', color: '#64748b' }}>
-                <List size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
-                <Text size="2" color="gray">
-                  No headings found.
-                  <br /> Add # Headings to generate an outline!
-                </Text>
-              </Box>
+              <Text size="2" color="gray">
+                No headings found in document. Use # or ## to create headings.
+              </Text>
             ) : (
-              headings.map((h, i) => (
-                <Box
-                  key={i}
-                  onClick={() => onSelectHeading && onSelectHeading(h.line)}
-                  style={{
-                    paddingLeft: (h.level - 1) * 12 + 8,
-                    paddingTop: 6,
-                    paddingBottom: 6,
-                    paddingRight: 8,
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                    fontSize: 13,
-                    color: h.level === 1 ? '#c084fc' : '#cbd5e1',
-                    fontWeight: h.level === 1 ? 600 : 400,
-                    transition: 'background 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(139, 92, 246, 0.12)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <Text size="2" truncate>
+              <Flex direction="column" gap="1">
+                {headings.map((h, i) => (
+                  <Button
+                    key={i}
+                    variant="ghost"
+                    color="gray"
+                    size="1"
+                    onClick={() => onSelectHeading && onSelectHeading(h.line)}
+                    style={{
+                      justifyContent: 'flex-start',
+                      paddingLeft: (h.level - 1) * 14 + 8,
+                      fontSize: 12,
+                      color: h.level === 1 ? '#c084fc' : h.level === 2 ? '#e2e8f0' : '#94a3b8',
+                      fontWeight: h.level === 1 ? 600 : 400,
+                      borderRadius: 6,
+                    }}
+                  >
                     {h.text}
-                  </Text>
-                </Box>
-              ))
+                  </Button>
+                ))}
+              </Flex>
             )}
-          </Flex>
+          </Box>
         )}
-      </Box>
 
-      {/* Footer Document Stats */}
-      <Box p="3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)', background: 'rgba(10, 14, 23, 0.5)' }}>
-        <Flex justify="space-between" align="center">
-          <Flex align="center" gap="1">
-            <Clock size={13} color="#94a3b8" />
-            <Text size="1" color="gray">
-              {stats.readingTime} min read
-            </Text>
+        {/* Document Stats Footer */}
+        <Box p="3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)', background: 'rgba(10, 14, 23, 0.4)' }}>
+          <Flex direction="column" gap="1">
+            <Flex justify="space-between">
+              <Text size="1" color="gray">
+                Words:
+              </Text>
+              <Badge variant="soft" color="violet" size="1">
+                {stats.words.toLocaleString()}
+              </Badge>
+            </Flex>
+            <Flex justify="space-between">
+              <Text size="1" color="gray">
+                Characters:
+              </Text>
+              <Badge variant="soft" color="gray" size="1">
+                {stats.chars.toLocaleString()}
+              </Badge>
+            </Flex>
+            <Flex justify="space-between" align="center">
+              <Text size="1" color="gray" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Clock size={12} /> Read time:
+              </Text>
+              <Text size="1" style={{ color: '#c084fc', fontWeight: 600 }}>
+                ~{stats.readTime} min
+              </Text>
+            </Flex>
           </Flex>
-          <Badge size="1" color="violet" variant="soft">
-            {stats.words} Words
-          </Badge>
-        </Flex>
+        </Box>
       </Box>
-    </Box>
+    </>
   );
 }
