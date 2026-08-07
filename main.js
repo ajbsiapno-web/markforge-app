@@ -176,9 +176,14 @@ ipcMain.handle('save-file-as', async (event, { content }) => {
 ipcMain.handle('ollama-call', async (event, { prompt, model }) => {
   return new Promise((resolve) => {
     const body = JSON.stringify({
-      model: model || 'llama3',
+      model: model || 'qwen2.5:3b',
       prompt,
       stream: false,
+      options: {
+        temperature: 0.2,
+        num_ctx: 8192,
+        top_p: 0.9,
+      },
     });
 
     const options = {
@@ -209,9 +214,9 @@ ipcMain.handle('ollama-call', async (event, { prompt, model }) => {
       resolve({ success: false, error: 'Ollama not reachable: ' + e.message });
     });
 
-    req.setTimeout(120000, () => {
+    req.setTimeout(300000, () => {
       req.destroy();
-      resolve({ success: false, error: 'Request timed out after 120s' });
+      resolve({ success: false, error: 'Ollama request timed out after 5 minutes. Try using a faster model like "llama3.2:latest" or "qwen2.5:3b".' });
     });
 
     req.write(body);

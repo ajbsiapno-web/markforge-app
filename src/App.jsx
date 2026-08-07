@@ -570,14 +570,16 @@ export default function App() {
       agent: 'AI Agent Executing Task...',
     };
 
-    const systemContext = `You are an expert AI Markdown Assistant. Follow the user instruction precisely.
-- If asked to generate a flowchart or diagram, write valid \`\`\`mermaid code blocks.
-- If asked to generate a table, use valid Markdown table syntax.
-- If asked to generate math, use $$ formula $$ syntax.
-- Return ONLY clean Markdown text without wrapping in \`\`\`markdown code block fences.`;
+    const systemContext = `You are MarkForge AI — an expert Markdown architect, technical writer, and editor.
+Follow these instructions meticulously:
+1. FORMATTING: Return clean, compliant Markdown. Use appropriate headings, lists, tables, and fenced code blocks with language identifiers.
+2. DIAGRAMS: If asked for a flowchart or diagram, write valid \`\`\`mermaid code blocks (e.g. \`\`\`mermaid\nflowchart TD\n...\`\`\`).
+3. MATHEMATICS: Use standard LaTeX math formatting ($inline$ or $$display block$$).
+4. NO CHAT FLUFF: Do NOT include conversational filler like "Sure, here is your text:". Return direct, publication-ready Markdown content.
+5. NO WRAPPING FENCES: Do NOT wrap the entire response in outer \`\`\`markdown fences.`;
 
     const isNewGeneration = /generate|create|add|insert|flowchart|diagram|table|math|latex/i.test(customInstruction);
-    const contextSnippet = isNewGeneration ? '' : `\n\nCurrent Document Context:\n${markdown.slice(0, 1000)}`;
+    const contextSnippet = isNewGeneration ? '' : `\n\nCurrent Document Context:\n${markdown.slice(0, 16000)}`;
 
     const prompts = {
       fix: `${systemContext}\n\nFix all broken Markdown syntax in this document:\n\n${markdown}`,
