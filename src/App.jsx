@@ -245,22 +245,33 @@ export default function App() {
         }
       }
 
-      try {
-        const response = await fetch('http://localhost:11434/api/tags', { method: 'GET' });
-        if (response.ok) {
-          const data = await response.json();
-          const modelNames = (data.models || []).map((m) => m.name);
-          if (modelNames.length > 0) {
-            setOllamaStatus('online');
-            setAvailableModels(modelNames);
-            setSelectedModel((prev) => (modelNames.includes(prev) ? prev : modelNames[0]));
-            return;
+      const tryFetchModels = async (url) => {
+        try {
+          const res = await fetch(url, { method: 'GET' });
+          if (res.ok) {
+            const data = await res.json();
+            return (data.models || []).map((m) => m.name);
           }
+        } catch (e) {
+          return null;
         }
+        return null;
+      };
+
+      let modelNames = await tryFetchModels('http://localhost:11434/api/tags');
+      if (!modelNames) {
+        modelNames = await tryFetchModels('http://127.0.0.1:11434/api/tags');
+      }
+
+      if (modelNames && modelNames.length > 0) {
+        setOllamaStatus('online');
+        setAvailableModels(modelNames);
+        setSelectedModel((prev) => (modelNames.includes(prev) ? prev : modelNames[0]));
+      } else if (modelNames !== null) {
         setOllamaStatus('online');
         setAvailableModels([]);
         setSelectedModel('');
-      } catch (err) {
+      } else {
         setOllamaStatus('offline');
         setAvailableModels([]);
         setSelectedModel('');
