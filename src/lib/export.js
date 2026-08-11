@@ -1,10 +1,96 @@
 import { marked } from 'marked';
+import markedKatex from 'marked-katex-extension';
+import hljs from 'highlight.js';
+import mermaid from 'mermaid';
+
+marked.use(
+  markedKatex({
+    throwOnError: false,
+    nonStandard: true,
+  })
+);
+
+marked.use({ gfm: true, breaks: true });
+
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'dark',
+  securityLevel: 'loose',
+  fontFamily: 'Inter, system-ui, sans-serif',
+});
+
+/**
+ * Converts Markdown string into HTML string, rendering all Mermaid flowcharts & diagrams
+ * into SVG elements and applying syntax highlighting / KaTeX formulas.
+ */
+export async function renderMarkdownToExportHtml(markdown) {
+  const htmlContent = marked.parse(markdown || '');
+
+  // Create a temporary container to manipulate DOM elements & render mermaid diagrams
+  const container = document.createElement('div');
+  container.innerHTML = htmlContent;
+
+  // 1. Highlight standard syntax code blocks (skipping mermaid / flowchart)
+  container.querySelectorAll('pre code').forEach((block) => {
+    if (!block.classList.contains('language-mermaid') && !block.classList.contains('language-flowchart')) {
+      hljs.highlightElement(block);
+    }
+  });
+
+  // 2. Render Mermaid Flowcharts & Diagrams into SVGs
+  const mermaidBlocks = container.querySelectorAll(
+    'pre code.language-mermaid, pre code.language-flowchart, pre.language-mermaid, code.language-mermaid, pre.language-flowchart'
+  );
+
+  for (let i = 0; i < mermaidBlocks.length; i++) {
+    const block = mermaidBlocks[i];
+    const pre = block.tagName?.toLowerCase() === 'pre' ? block : block.parentElement;
+    if (!pre) continue;
+
+    let code = block.textContent || '';
+    code = code.replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&').trim();
+
+    if (!code) continue;
+
+    // Handle generic flowchart language tags by prepending flowchart TD if needed
+    const isGenericFlowchart = block.classList.contains('language-flowchart') || pre.classList.contains('language-flowchart');
+    if (isGenericFlowchart && !/^(graph|flowchart|sequenceDiagram|gantt|classDiagram|stateDiagram|erDiagram|journey|pie|quadrantChart|requirementDiagram|gitGraph|C4Context|mindmap|timeline|zenuml|sankey|block)/i.test(code)) {
+      code = `flowchart TD\n${code}`;
+    }
+
+    const uniqueId = `export_mermaid_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`;
+
+    try {
+      const { svg } = await mermaid.render(uniqueId, code);
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'mermaid-diagram-container';
+      wrapper.style.display = 'flex';
+      wrapper.style.justifyContent = 'center';
+      wrapper.style.alignItems = 'center';
+      wrapper.style.padding = '24px';
+      wrapper.style.margin = '1.8em 0';
+      wrapper.style.background = '#090b11';
+      wrapper.style.border = '1px solid rgba(139, 92, 246, 0.3)';
+      wrapper.style.borderRadius = '12px';
+      wrapper.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.4)';
+      wrapper.style.overflowX = 'auto';
+      wrapper.innerHTML = svg;
+
+      pre.replaceWith(wrapper);
+    } catch (e) {
+      console.warn('Mermaid export render error:', e);
+    }
+  }
+
+  return container.innerHTML;
+}
 
 /**
  * Export document to PDF via browser/Electron print dialog
  */
-export function exportToPdf(markdown, title = 'Document') {
-  const htmlContent = marked.parse(markdown || '');
+export async function exportToPdf(markdown, title = 'Document') {
+  const htmlContent = await renderMarkdownToExportHtml(markdown);
   const cleanTitle = (title || 'Document').replace(/\.md$/i, '');
 
   const fullHtml = `<!DOCTYPE html>
@@ -91,11 +177,31 @@ export function exportToPdf(markdown, title = 'Document') {
       max-width: 100%;
       height: auto;
     }
+    .mermaid-diagram-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      margin: 1.8em 0;
+      background: #090b11 !important;
+      border: 1px solid rgba(139, 92, 246, 0.3) !important;
+      border-radius: 12px !important;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      overflow-x: auto;
+      page-break-inside: avoid;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .mermaid-diagram-container svg {
+      max-width: 100% !important;
+      height: auto !important;
+    }
     @media print {
       body { background: white; color: black; }
       pre { background: #1e293b !important; color: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       blockquote { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .mermaid-diagram-container { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
   </style>
 </head>
@@ -134,8 +240,8 @@ export function exportToPdf(markdown, title = 'Document') {
 /**
  * Export document as styled standalone HTML file download
  */
-export function exportToHtml(markdown, title = 'Document') {
-  const htmlContent = marked.parse(markdown || '');
+export async function exportToHtml(markdown, title = 'Document') {
+  const htmlContent = await renderMarkdownToExportHtml(markdown);
   const cleanTitle = (title || 'Document').replace(/\.md$/i, '');
 
   const fullHtml = `<!DOCTYPE html>
@@ -240,6 +346,22 @@ export function exportToHtml(markdown, title = 'Document') {
       margin: 2em 0;
     }
     img { max-width: 100%; height: auto; border-radius: 8px; }
+    .mermaid-diagram-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      margin: 1.8em 0;
+      background: #090b11;
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      overflow-x: auto;
+    }
+    .mermaid-diagram-container svg {
+      max-width: 100%;
+      height: auto;
+    }
   </style>
 </head>
 <body>
@@ -265,7 +387,7 @@ export function exportToMarkdown(markdown, title = 'Document') {
  * Copy rendered HTML content to system clipboard
  */
 export async function copyRenderedHtmlToClipboard(markdown) {
-  const htmlContent = marked.parse(markdown || '');
+  const htmlContent = await renderMarkdownToExportHtml(markdown);
   try {
     if (navigator.clipboard && window.ClipboardItem) {
       const blobHtml = new Blob([htmlContent], { type: 'text/html' });
