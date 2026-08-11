@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Dialog, Flex, Button, Text, Box, TextField, Select, Badge, Card, Tooltip, IconButton } from '@radix-ui/themes';
-import { Share2, Copy, Check, UserPlus, Trash2, Globe, X, Mail, ExternalLink } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Dialog, Flex, Button, Text, Box, TextField, Select, Badge, Card, Tooltip } from '@radix-ui/themes';
+import { Share2, Copy, Check, UserPlus, Trash2, Globe, X, Mail } from 'lucide-react';
 import { fetchDocumentShares, shareDocumentWithUser, removeDocumentShare } from '../lib/commentsAndShares';
 
 export default function ShareModal({ isOpen, onClose, docId, docTitle }) {

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Flex, Text, Box, Card, Badge, Button, IconButton, Tooltip } from '@radix-ui/themes';
 import { List, Clock, FileText, FolderPlus, Trash2, Cloud, UploadCloud, Pencil } from 'lucide-react';
 
@@ -6,7 +6,7 @@ export default function Sidebar({
   markdown,
   isOpen,
   onCloseSidebar,
-  user,
+  _user,
   userDocs,
   activeDocId,
   onSelectDoc,

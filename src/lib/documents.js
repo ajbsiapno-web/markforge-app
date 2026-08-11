@@ -33,7 +33,7 @@ export async function fetchDocumentById(docId, optionalTitle = null) {
           }
 
           // 2. Try word token matching (e.g. 'Job Order' -> matches 'job_order_...')
-          const words = cleanTitle.split(/[\s_\-]+/).filter((w) => w.length > 2);
+          const words = cleanTitle.split(/[\s_-]+/).filter((w) => w.length > 2);
           if (words.length > 0) {
             const orConditions = words.map((w) => `title.ilike.%${w}%`).join(',');
             const { data: wordData, error: wordErr } = await supabase

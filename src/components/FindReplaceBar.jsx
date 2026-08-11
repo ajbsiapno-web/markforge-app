@@ -1,4 +1,3 @@
-import React from 'react';
 import { Flex, Box, IconButton, Button, Tooltip, Badge } from '@radix-ui/themes';
 import {
   Search,

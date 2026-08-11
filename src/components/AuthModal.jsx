@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Dialog, Flex, Button, Text, Box, TextField, Checkbox } from '@radix-ui/themes';
 import { Lock, Mail, User, KeyRound, X, AlertCircle } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';

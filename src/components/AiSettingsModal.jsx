@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Dialog, Flex, Button, Text, Box, TextField, Select, Badge, Card, IconButton, Tabs } from '@radix-ui/themes';
-import { Wand2, Key, Check, X, ShieldCheck, Sparkles, Cpu } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Dialog, Flex, Button, Text, Box, TextField, Select, Badge, Card, IconButton } from '@radix-ui/themes';
+import { Wand2, Key, Check, X } from 'lucide-react';
 import { AI_PROVIDERS, getSavedApiKey, saveApiKey } from '../lib/aiProviders';
 
 export default function AiSettingsModal({ isOpen, onClose, currentProvider, onProviderChange, onKeysUpdated }) {

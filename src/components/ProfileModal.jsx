@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Dialog, Flex, Button, Text, Box, TextField, Card, Badge } from '@radix-ui/themes';
 import { User, Lock, ShieldCheck, LogOut, Check, X, KeyRound, Sparkles } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -7,7 +7,7 @@ export default function ProfileModal({ isOpen, onClose, user, onLogout, onChange
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'password'
 
   // Change password state
-  const [currentPassword, setCurrentPassword] = useState('');
+  const [_currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');

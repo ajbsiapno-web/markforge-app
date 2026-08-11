@@ -1,4 +1,3 @@
-import React from 'react';
 import { Dialog, Flex, Button, Text, Box, Spinner } from '@radix-ui/themes';
 import { Wand2, X, Check } from 'lucide-react';
 

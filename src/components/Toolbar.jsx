@@ -1,4 +1,3 @@
-import React from 'react';
 import { Flex, Text, Button, IconButton, Select, Tooltip, DropdownMenu, Separator, Badge } from '@radix-ui/themes';
 import {
   FilePlus,
@@ -29,7 +28,6 @@ import {
   Copy,
   Settings,
   Bot,
-  Sparkles,
 } from 'lucide-react';
 import { AI_PROVIDERS } from '../lib/aiProviders';
 
