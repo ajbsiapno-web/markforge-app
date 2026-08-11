@@ -727,6 +727,22 @@ Follow these instructions meticulously:
     setAiPendingResult('');
   };
 
+  const handleOpenShare = async () => {
+    if (!activeDocId || activeDocId.startsWith('local_') || activeDocId.startsWith('doc_')) {
+      const res = await saveUserDocument(currentUser, activeDocId, filePath || 'Untitled.md', markdown);
+      if (res.success && res.doc) {
+        setActiveDocId(res.doc.id);
+        setFilePath(res.doc.title);
+        setLastSaved(markdown);
+        setIsModified(false);
+        if (window.history?.replaceState) {
+          window.history.replaceState({}, '', `/?doc=${res.doc.id}&title=${encodeURIComponent(res.doc.title)}`);
+        }
+      }
+    }
+    setIsShareOpen(true);
+  };
+
   return (
     <div
       className="app-container"
@@ -806,7 +822,7 @@ Follow these instructions meticulously:
         onOpenAiSettings={() => setIsAiSettingsOpen(true)}
         toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         sidebarOpen={sidebarOpen}
-        onOpenShare={() => setIsShareOpen(true)}
+        onOpenShare={handleOpenShare}
         onOpenComments={() => setIsCommentsOpen(!isCommentsOpen)}
         commentsCount={commentsCount}
         isReadOnly={isReadOnly}
