@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Flex, Text } from '@radix-ui/themes';
 import { UploadCloud, Sparkles } from 'lucide-react';
 import Titlebar from './components/Titlebar';

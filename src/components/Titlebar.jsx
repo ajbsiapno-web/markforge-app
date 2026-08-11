@@ -1,4 +1,3 @@
-import React from 'react';
 import { Flex, Text, Button, DropdownMenu, Tooltip, IconButton, Badge } from '@radix-ui/themes';
 import { FileText, Check, User, LogOut, KeyRound, LogIn, ChevronDown, HelpCircle, Pencil, Lock } from 'lucide-react';
 

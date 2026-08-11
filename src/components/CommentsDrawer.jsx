@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Flex, Text, Button, Card, TextArea, Avatar, IconButton, Tooltip } from '@radix-ui/themes';
-import { MessageSquare, Send, Trash2, X, Sparkles } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Box, Flex, Text, Button, Card, TextArea, IconButton, Tooltip } from '@radix-ui/themes';
+import { MessageSquare, Send, Trash2, X } from 'lucide-react';
 import { fetchDocumentComments, addDocumentComment, deleteDocumentComment } from '../lib/commentsAndShares';
 
-export default function CommentsDrawer({ isOpen, onClose, docId, docTitle, user }) {
+export default function CommentsDrawer({ isOpen, onClose, docId, _docTitle, user }) {
   const [comments, setComments] = useState([]);
   const [newCommentText, setNewCommentText] = useState('');
   const [loading, setLoading] = useState(false);

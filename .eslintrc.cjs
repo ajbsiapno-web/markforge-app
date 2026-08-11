@@ -27,7 +27,8 @@ module.exports = {
   plugins: ['react', 'react-hooks'],
   rules: {
     'no-undef': 'error',
-    'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+    'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+    'react/jsx-uses-vars': 'error',
     'react/jsx-no-undef': 'error',
     'react/prop-types': 'off',
     'react/no-unknown-property': 'off',

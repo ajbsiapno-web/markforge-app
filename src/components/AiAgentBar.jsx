@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Flex, Text, Box, Button, TextField, Badge, IconButton } from '@radix-ui/themes';
 import { Bot, Sparkles, Workflow, Table, Wand2, X, Send, GitFork, Calculator } from 'lucide-react';
 

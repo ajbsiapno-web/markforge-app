@@ -1,4 +1,3 @@
-import React from 'react';
 import { Flex, Text, Tooltip } from '@radix-ui/themes';
 
 export default function Statusbar({ markdown, ollamaStatus, modelCount, onRefresh }) {

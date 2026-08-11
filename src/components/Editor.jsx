@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { Box, Flex, Text, Button } from '@radix-ui/themes';
 import { Lock, Copy, LogIn } from 'lucide-react';
 import { marked } from 'marked';
@@ -30,7 +30,7 @@ export default function Editor({
   findReplaceState,
   onCloseFindReplace,
   isReadOnly = false,
-  currentUser = null,
+  _currentUser = null,
   onDuplicateDoc,
   onOpenAuth,
 }) {
@@ -181,19 +181,7 @@ export default function Editor({
     if (onCloseFindReplace) onCloseFindReplace();
   };
 
-  // Synchronize WYSIWYG HTML when mode changes or external markdown changes
-  useEffect(() => {
-    if (mode === 'wysiwyg' && wysiwygRef.current) {
-      const html = marked.parse(markdown || '');
-      wysiwygRef.current.innerHTML = html;
-      highlightCodeAndMermaid(wysiwygRef.current);
-    } else if (mode === 'split' && previewRef.current) {
-      previewRef.current.innerHTML = marked.parse(markdown || '');
-      highlightCodeAndMermaid(previewRef.current);
-    }
-  }, [mode, markdown]);
-
-  const addCopyButtons = (container) => {
+  const addCopyButtons = useCallback((container) => {
     if (!container) return;
     const preBlocks = container.querySelectorAll('pre');
     preBlocks.forEach((pre) => {
@@ -227,9 +215,9 @@ export default function Editor({
 
       pre.appendChild(btn);
     });
-  };
+  }, []);
 
-  const highlightCodeAndMermaid = async (container) => {
+  const highlightCodeAndMermaid = useCallback(async (container) => {
     if (!container) return;
 
     // 1. Highlight standard syntax code blocks (skipping mermaid)
@@ -281,7 +269,19 @@ export default function Editor({
         console.warn('Mermaid render error:', e);
       }
     }
-  };
+  }, [addCopyButtons]);
+
+  // Synchronize WYSIWYG HTML when mode changes or external markdown changes
+  useEffect(() => {
+    if (mode === 'wysiwyg' && wysiwygRef.current) {
+      const html = marked.parse(markdown || '');
+      wysiwygRef.current.innerHTML = html;
+      highlightCodeAndMermaid(wysiwygRef.current);
+    } else if (mode === 'split' && previewRef.current) {
+      previewRef.current.innerHTML = marked.parse(markdown || '');
+      highlightCodeAndMermaid(previewRef.current);
+    }
+  }, [mode, markdown, highlightCodeAndMermaid]);
 
   // Handle WYSIWYG innerHTML input -> convert to markdown
   const handleWysiwygInput = () => {
@@ -374,7 +374,7 @@ export default function Editor({
             >
               <Copy size={13} /> Make an Editable Copy
             </Button>
-            {!currentUser && onOpenAuth && (
+            {!_currentUser && onOpenAuth && (
               <Button
                 size="1"
                 variant="soft"
