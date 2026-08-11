@@ -15,8 +15,8 @@ import ShortcutsModal from './components/ShortcutsModal';
 import AiSettingsModal from './components/AiSettingsModal';
 import AiAgentBar from './components/AiAgentBar';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
-import { fetchUserDocuments, saveUserDocument, deleteUserDocument } from './lib/documents';
-import { fetchDocumentComments } from './lib/commentsAndShares';
+import { fetchUserDocuments, saveUserDocument, deleteUserDocument, fetchDocumentById } from './lib/documents';
+import { fetchDocumentComments, checkUserEditPermission } from './lib/commentsAndShares';
 import { exportToPdf, exportToHtml, exportToMarkdown, copyRenderedHtmlToClipboard } from './lib/export';
 import { AI_PROVIDERS, getSavedApiKey, executeAiPrompt, cleanAiMarkdown } from './lib/aiProviders';
 
@@ -84,6 +84,7 @@ export default function App() {
   const [lastSaved, setLastSaved] = useState(WELCOME_MD);
   const [filePath, setFilePath] = useState('Welcome.md');
   const [isModified, setIsModified] = useState(false);
+  const [isReadOnly, setIsReadOnly] = useState(false);
   const [mode, setMode] = useState('wysiwyg'); // 'wysiwyg' | 'source' | 'split'
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -97,18 +98,60 @@ export default function App() {
   const [isAgentBarOpen, setIsAgentBarOpen] = useState(false);
   const [findReplaceState, setFindReplaceState] = useState({ isOpen: false, showReplace: false });
 
-  // Parse shared URL parameters (e.g. ?title=Finished+Goods+3.0) on app load
-  useEffect(() => {
+  // User Auth State
+  const [currentUser, setCurrentUser] = useState(() => {
     try {
-      const params = new URLSearchParams(window.location.search);
-      const sharedTitle = params.get('title');
-      if (sharedTitle) {
-        setFilePath(decodeURIComponent(sharedTitle));
-      }
+      const saved = localStorage.getItem('markforge_user');
+      return saved ? JSON.parse(saved) : null;
     } catch {
-      /* ignore */
+      return null;
     }
-  }, []);
+  });
+
+  // Parse shared URL parameters (e.g. ?doc=...&title=...) on app load
+  useEffect(() => {
+    const loadSharedUrlDoc = async () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const docParam = params.get('doc');
+        const titleParam = params.get('title');
+
+        if (titleParam) {
+          setFilePath(decodeURIComponent(titleParam));
+        }
+
+        if (docParam) {
+          setActiveDocId(docParam);
+
+          const fetchedDoc = await fetchDocumentById(docParam);
+          if (fetchedDoc) {
+            setMarkdown(fetchedDoc.content || '');
+            setLastSaved(fetchedDoc.content || '');
+            setFilePath(fetchedDoc.title || (titleParam ? decodeURIComponent(titleParam) : 'Shared Document.md'));
+
+            // Check permissions for read-only status
+            if (!currentUser) {
+              setIsReadOnly(true);
+            } else if (fetchedDoc.user_id && fetchedDoc.user_id !== currentUser.id) {
+              const canEdit = await checkUserEditPermission(docParam, currentUser.email);
+              setIsReadOnly(!canEdit);
+            } else {
+              setIsReadOnly(false);
+            }
+          } else {
+            // Document ID present in URL, but user not logged in or document not found
+            if (!currentUser) {
+              setIsReadOnly(true);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Error loading shared document from URL:', err);
+      }
+    };
+
+    loadSharedUrlDoc();
+  }, [currentUser]);
 
   // Synchronize document title and Open Graph social sharing meta tags
   useEffect(() => {
@@ -170,16 +213,6 @@ export default function App() {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [commentsCount, setCommentsCount] = useState(0);
-
-  // User Auth State
-  const [currentUser, setCurrentUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem('markforge_user');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
 
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -365,14 +398,46 @@ export default function App() {
     setLastSaved('');
     setFilePath('Untitled.md');
     setActiveDocId(null);
+    setIsReadOnly(false);
     setIsModified(false);
+    if (window.history?.replaceState) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   };
 
   const handleOpenFile = () => {
     fileInputRef.current?.click();
   };
 
+  const handleDuplicateDoc = async () => {
+    let copyTitle = filePath || 'Shared Document.md';
+    if (!copyTitle.toLowerCase().includes('(copy)')) {
+      copyTitle = copyTitle.replace(/(\.md|\.txt|\.markdown)?$/i, ' (Copy).md');
+    }
+
+    const res = await saveUserDocument(currentUser, null, copyTitle, markdown);
+    if (res.success && res.doc) {
+      setActiveDocId(res.doc.id);
+      setFilePath(res.doc.title);
+      setLastSaved(markdown);
+      setIsReadOnly(false);
+      setIsModified(false);
+      if (currentUser) {
+        await reloadUserDocs(currentUser);
+      }
+
+      if (window.history?.replaceState) {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  };
+
   const handleRenameDoc = async (docIdOrTitle, newTitle) => {
+    if (isReadOnly) {
+      alert('This shared document is in Read-Only mode. Click "Make a Copy" to rename.');
+      return;
+    }
+
     let targetDocId = activeDocId;
     let targetTitle = '';
 
@@ -415,6 +480,7 @@ export default function App() {
       const content = e.target?.result || '';
       setMarkdown(content);
       setFilePath(filename);
+      setIsReadOnly(false);
       setIsModified(false);
 
       // Automatically save to Cloud Documents if user is logged in
@@ -466,7 +532,11 @@ export default function App() {
     setLastSaved(doc.content || '');
     setFilePath(doc.title || 'Untitled.md');
     setActiveDocId(doc.id);
+    setIsReadOnly(false);
     setIsModified(false);
+    if (window.history?.replaceState) {
+      window.history.replaceState({}, '', `/?doc=${doc.id}&title=${encodeURIComponent(doc.title || 'Untitled.md')}`);
+    }
   };
 
   const handleDeleteDoc = async (docId) => {
@@ -478,6 +548,11 @@ export default function App() {
   };
 
   const handleSaveFile = async () => {
+    if (isReadOnly) {
+      alert('This shared document is in Read-Only mode. A editable copy will be created in your workspace.');
+      await handleDuplicateDoc();
+      return;
+    }
     const title = filePath || 'Untitled.md';
     const res = await saveUserDocument(currentUser, activeDocId, title, markdown);
     if (res.success && res.doc) {
@@ -517,6 +592,10 @@ export default function App() {
 
   // Formatting actions
   const handleFormatAction = (action) => {
+    if (isReadOnly) {
+      alert('This shared document is in Read-Only mode. Click "Make a Copy" to edit.');
+      return;
+    }
     const formatMap = {
       bold: ['**', '**'],
       italic: ['*', '*'],
@@ -538,6 +617,10 @@ export default function App() {
   };
 
   const handleHeadingAction = (level) => {
+    if (isReadOnly) {
+      alert('This shared document is in Read-Only mode. Click "Make a Copy" to edit.');
+      return;
+    }
     if (!level || level === 'p') return;
     const prefixMap = { h1: '# ', h2: '## ', h3: '### ', h4: '#### ' };
     const prefix = prefixMap[level] || '';
@@ -547,6 +630,10 @@ export default function App() {
 
   // Multi-Provider AI Prompt Trigger
   const triggerAI = async (type, customInstruction = '') => {
+    if (isReadOnly) {
+      alert('This shared document is in Read-Only mode. Click "Make a Copy" to run AI actions on your document.');
+      return;
+    }
     const providerObj = AI_PROVIDERS[activeProvider] || AI_PROVIDERS.ollama;
     const apiKey = getSavedApiKey(activeProvider);
 
@@ -684,6 +771,7 @@ Follow these instructions meticulously:
         onLogout={handleLogout}
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
         onRenameDoc={handleRenameDoc}
+        isReadOnly={isReadOnly}
       />
 
       {/* Toolbar */}
@@ -709,6 +797,8 @@ Follow these instructions meticulously:
         onOpenShare={() => setIsShareOpen(true)}
         onOpenComments={() => setIsCommentsOpen(!isCommentsOpen)}
         commentsCount={commentsCount}
+        isReadOnly={isReadOnly}
+        onDuplicateDoc={handleDuplicateDoc}
       />
 
       {/* Main Workspace Pane */}
@@ -739,6 +829,10 @@ Follow these instructions meticulously:
           mode={mode}
           findReplaceState={findReplaceState}
           onCloseFindReplace={() => setFindReplaceState({ isOpen: false, showReplace: false })}
+          isReadOnly={isReadOnly}
+          currentUser={currentUser}
+          onDuplicateDoc={handleDuplicateDoc}
+          onOpenAuth={() => setIsAuthOpen(true)}
         />
 
         <CommentsDrawer

@@ -101,6 +101,29 @@ export async function deleteDocumentComment(docId, commentId) {
    DOCUMENT SHARING API
    =================================================================== */
 
+// Check if a user has edit permission for a shared document
+export async function checkUserEditPermission(docId, userEmail) {
+  if (!docId || !userEmail) return false;
+  if (isSupabaseConfigured && supabase && !docId.startsWith('local_')) {
+    try {
+      const { data } = await supabase
+        .from('document_shares')
+        .select('permission')
+        .eq('document_id', docId)
+        .eq('shared_with_email', userEmail)
+        .single();
+
+      return data?.permission === 'edit';
+    } catch {
+      return false;
+    }
+  }
+
+  const shares = getLocalShares(docId);
+  const userShare = shares.find((s) => s.shared_with_email === userEmail);
+  return userShare?.permission === 'edit';
+}
+
 // Fetch shares for a document
 export async function fetchDocumentShares(docId) {
   if (!docId) return [];

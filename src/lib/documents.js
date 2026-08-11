@@ -1,4 +1,37 @@
-import { supabase, isSupabaseConfigured } from './supabase';
+// Fetch a single document by ID (for shared links or direct opening)
+export async function fetchDocumentById(docId) {
+  if (!docId) return null;
+
+  if (isSupabaseConfigured && supabase && !docId.startsWith('local_')) {
+    try {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('id', docId)
+        .single();
+
+      if (!error && data) {
+        return data;
+      }
+    } catch (err) {
+      console.warn('Supabase fetch document by id error:', err.message);
+    }
+  }
+
+  // Fallback to searching local storage across guest and user documents
+  try {
+    const allKeys = Object.keys(localStorage).filter((k) => k.startsWith('markforge_docs_'));
+    for (const key of allKeys) {
+      const docs = JSON.parse(localStorage.getItem(key) || '[]');
+      const found = docs.find((d) => d.id === docId);
+      if (found) return found;
+    }
+  } catch {
+    /* ignore */
+  }
+
+  return null;
+}
 
 // Fetch user's documents from Supabase (or local storage fallback)
 export async function fetchUserDocuments(user) {
