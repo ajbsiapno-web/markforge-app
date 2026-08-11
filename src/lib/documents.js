@@ -102,36 +102,40 @@ export async function saveUserDocument(user, currentDocId, title, content) {
   const docTitle = title || 'Untitled.md';
   const now = new Date().toISOString();
 
-  if (isSupabaseConfigured && supabase && user?.id) {
+  if (isSupabaseConfigured && supabase) {
     try {
-      if (currentDocId) {
-        // Update existing document
-        const { data, error } = await supabase
-          .from('documents')
-          .update({ title: docTitle, content, updated_at: now })
-          .eq('id', currentDocId)
-          .eq('user_id', user.id)
-          .select()
-          .single();
+      // 1. If valid UUID cloud document exists, update it
+      if (currentDocId && !currentDocId.startsWith('local_') && !currentDocId.startsWith('doc_')) {
+        const updatePayload = { title: docTitle, content, updated_at: now };
+        let query = supabase.from('documents').update(updatePayload).eq('id', currentDocId);
+        if (user?.id) {
+          query = query.eq('user_id', user.id);
+        }
 
-        if (error) throw error;
-        return { success: true, doc: data };
-      } else {
-        // Create new document
-        const { data, error } = await supabase
-          .from('documents')
-          .insert([
-            {
-              user_id: user.id,
-              title: docTitle,
-              content,
-              updated_at: now,
-            },
-          ])
-          .select()
-          .single();
+        const { data, error } = await query.select().single();
+        if (!error && data) {
+          return { success: true, doc: data };
+        }
+      }
 
-        if (error) throw error;
+      // 2. Otherwise (new doc or local_ draft), insert a new cloud document in Supabase!
+      const insertPayload = {
+        title: docTitle,
+        content,
+        is_public: true,
+        updated_at: now,
+      };
+      if (user?.id) {
+        insertPayload.user_id = user.id;
+      }
+
+      const { data, error } = await supabase
+        .from('documents')
+        .insert([insertPayload])
+        .select()
+        .single();
+
+      if (!error && data) {
         return { success: true, doc: data };
       }
     } catch (err) {
