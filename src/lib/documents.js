@@ -21,6 +21,7 @@ export async function fetchDocumentById(docId, optionalTitle = null) {
       if (optionalTitle) {
         const cleanTitle = optionalTitle.trim().replace(/(\.md|\.txt|\.markdown)$/i, '');
         if (cleanTitle) {
+          // 1. Try exact/substring match
           const { data, error } = await supabase
             .from('documents')
             .select('*')
@@ -29,6 +30,21 @@ export async function fetchDocumentById(docId, optionalTitle = null) {
 
           if (!error && data && data.length > 0) {
             return data[0];
+          }
+
+          // 2. Try word token matching (e.g. 'Job Order' -> matches 'job_order_...')
+          const words = cleanTitle.split(/[\s_\-]+/).filter((w) => w.length > 2);
+          if (words.length > 0) {
+            const orConditions = words.map((w) => `title.ilike.%${w}%`).join(',');
+            const { data: wordData, error: wordErr } = await supabase
+              .from('documents')
+              .select('*')
+              .or(orConditions)
+              .limit(1);
+
+            if (!wordErr && wordData && wordData.length > 0) {
+              return wordData[0];
+            }
           }
         }
       }
