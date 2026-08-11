@@ -9,7 +9,16 @@ export const AI_PROVIDERS = {
     name: 'Local Ollama',
     icon: '💻',
     requiresKey: false,
-    defaultModels: ['qwen2.5:0.5b', 'llama3:latest', 'mistral', 'codellama'],
+    defaultModels: [
+      'qwen2.5:3b',
+      'qwen2.5:14b',
+      'llama3.2:latest',
+      'deepseek-r1:1.5b',
+      'qwen2.5:7b',
+      'deepseek-r1:7b',
+      'mistral:latest',
+      'qwen2.5:0.5b',
+    ],
   },
   openai: {
     id: 'openai',
@@ -99,20 +108,21 @@ async function callOllama(model, prompt) {
     throw new Error(res.error || 'Ollama Electron call failed');
   }
 
-  const selectedModel = model || 'qwen2.5:0.5b';
+  const selectedModel = model || 'qwen2.5:3b';
   const payload = {
     model: selectedModel,
     prompt: `${prompt}\n\nIMPORTANT: If generating a flowchart or diagram, output valid Mermaid syntax (e.g. \`\`\`mermaid\\nflowchart TD\\n ...\\n\`\`\`). Do NOT wrap in \`\`\`markdown.`,
     stream: false,
     options: {
       temperature: 0.2,
-      num_thread: 8,
+      num_ctx: 8192,
+      top_p: 0.9,
     },
   };
 
   const tryGenerate = async (url) => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000);
+    const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minutes timeout
 
     try {
       const response = await fetch(url, {
@@ -130,7 +140,7 @@ async function callOllama(model, prompt) {
     } catch (e) {
       clearTimeout(timeoutId);
       if (e.name === 'AbortError') {
-        throw new Error(`Ollama (${selectedModel}) request timed out after 25s. Switch model to "qwen2.5:0.5b" or "Google Gemini" for instant generation.`);
+        throw new Error(`Ollama (${selectedModel}) request timed out after 3 minutes. Try switching to a faster model like "llama3.2:latest" or "qwen2.5:3b".`);
       }
       return null;
     }
