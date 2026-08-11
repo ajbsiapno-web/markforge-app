@@ -116,34 +116,46 @@ export default function App() {
         const docParam = params.get('doc');
         const titleParam = params.get('title');
 
-        if (titleParam) {
-          setFilePath(decodeURIComponent(titleParam));
-        }
+        if (!docParam && !titleParam) return;
+
+        const decodedTitle = titleParam ? decodeURIComponent(titleParam) : 'Shared Document.md';
+        setFilePath(decodedTitle);
 
         if (docParam) {
           setActiveDocId(docParam);
+        }
 
-          const fetchedDoc = await fetchDocumentById(docParam);
-          if (fetchedDoc) {
-            setMarkdown(fetchedDoc.content || '');
-            setLastSaved(fetchedDoc.content || '');
-            setFilePath(fetchedDoc.title || (titleParam ? decodeURIComponent(titleParam) : 'Shared Document.md'));
+        // Immediately show loading indicator so default WELCOME_MD is not shown
+        setMarkdown(`# Loading "${decodedTitle}"...\n\n> Fetching document from cloud storage...`);
 
-            // Check permissions for read-only status
-            if (!currentUser) {
-              setIsReadOnly(true);
-            } else if (fetchedDoc.user_id && fetchedDoc.user_id !== currentUser.id) {
-              const canEdit = await checkUserEditPermission(docParam, currentUser.email);
-              setIsReadOnly(!canEdit);
-            } else {
-              setIsReadOnly(false);
-            }
-          } else {
-            // Document ID present in URL, but user not logged in or document not found
-            if (!currentUser) {
-              setIsReadOnly(true);
-            }
+        const fetchedDoc = await fetchDocumentById(docParam, decodedTitle);
+        if (fetchedDoc) {
+          setMarkdown(fetchedDoc.content || '');
+          setLastSaved(fetchedDoc.content || '');
+          setFilePath(fetchedDoc.title || decodedTitle);
+          if (fetchedDoc.id) {
+            setActiveDocId(fetchedDoc.id);
           }
+
+          // Check permissions for read-only status
+          if (!currentUser) {
+            setIsReadOnly(true);
+          } else if (fetchedDoc.user_id && fetchedDoc.user_id !== currentUser.id) {
+            const canEdit = await checkUserEditPermission(fetchedDoc.id || docParam, currentUser.email);
+            setIsReadOnly(!canEdit);
+          } else {
+            setIsReadOnly(false);
+          }
+        } else {
+          // Document ID present in URL, but not found in Supabase or local storage
+          setIsReadOnly(true);
+          setMarkdown(
+            `# ${decodedTitle}\n\n` +
+            `> ⚠️ **Document Content Unavailable**\n>\n` +
+            `> The requested shared document link (\`${docParam || 'N/A'}\`) could not be loaded from cloud storage.\n` +
+            `> It may have been deleted by the author or stored on a different account/device.\n\n` +
+            `You can create a new document or click **"Make a Copy"** to start writing.`
+          );
         }
       } catch (err) {
         console.warn('Error loading shared document from URL:', err);

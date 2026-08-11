@@ -1,20 +1,37 @@
-// Fetch a single document by ID (for shared links or direct opening)
-export async function fetchDocumentById(docId) {
-  if (!docId) return null;
+// Fetch a single document by ID (or title fallback for shared links)
+export async function fetchDocumentById(docId, optionalTitle = null) {
+  if (!docId && !optionalTitle) return null;
 
-  if (isSupabaseConfigured && supabase && !docId.startsWith('local_')) {
+  if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase
-        .from('documents')
-        .select('*')
-        .eq('id', docId)
-        .single();
+      if (docId && !docId.startsWith('local_')) {
+        const { data, error } = await supabase
+          .from('documents')
+          .select('*')
+          .eq('id', docId)
+          .maybeSingle();
 
-      if (!error && data) {
-        return data;
+        if (!error && data) {
+          return data;
+        }
+      }
+
+      if (optionalTitle) {
+        const cleanTitle = optionalTitle.trim().replace(/(\.md|\.txt|\.markdown)$/i, '');
+        if (cleanTitle) {
+          const { data, error } = await supabase
+            .from('documents')
+            .select('*')
+            .ilike('title', `%${cleanTitle}%`)
+            .limit(1);
+
+          if (!error && data && data.length > 0) {
+            return data[0];
+          }
+        }
       }
     } catch (err) {
-      console.warn('Supabase fetch document by id error:', err.message);
+      console.warn('Supabase fetch document error:', err.message);
     }
   }
 
@@ -23,8 +40,14 @@ export async function fetchDocumentById(docId) {
     const allKeys = Object.keys(localStorage).filter((k) => k.startsWith('markforge_docs_'));
     for (const key of allKeys) {
       const docs = JSON.parse(localStorage.getItem(key) || '[]');
-      const found = docs.find((d) => d.id === docId);
-      if (found) return found;
+      if (docId) {
+        const found = docs.find((d) => d.id === docId);
+        if (found) return found;
+      }
+      if (optionalTitle) {
+        const found = docs.find((d) => d.title?.toLowerCase() === optionalTitle.toLowerCase());
+        if (found) return found;
+      }
     }
   } catch {
     /* ignore */
