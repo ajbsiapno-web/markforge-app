@@ -1,3 +1,5 @@
+import { supabase, isSupabaseConfigured } from './supabase';
+
 // Fetch a single document by ID (or title fallback for shared links)
 export async function fetchDocumentById(docId, optionalTitle = null) {
   if (!docId && !optionalTitle) return null;
