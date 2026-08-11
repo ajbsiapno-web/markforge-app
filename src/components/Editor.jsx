@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
-import { Box, Flex } from '@radix-ui/themes';
+import { Box, Flex, Text, Button } from '@radix-ui/themes';
+import { Lock, Copy, LogIn } from 'lucide-react';
 import { marked } from 'marked';
 import markedKatex from 'marked-katex-extension';
 import hljs from 'highlight.js';
@@ -28,6 +29,10 @@ export default function Editor({
   mode,
   findReplaceState,
   onCloseFindReplace,
+  isReadOnly = false,
+  currentUser = null,
+  onDuplicateDoc,
+  onOpenAuth,
 }) {
   const wysiwygRef = useRef(null);
   const sourceRef = useRef(null);
@@ -337,7 +342,53 @@ export default function Editor({
   }, []);
 
   return (
-    <Box style={{ flex: 1, height: '100%', position: 'relative', overflow: 'hidden' }}>
+    <Box style={{ flex: 1, height: '100%', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      {/* Read-Only Shared Document Notice Banner */}
+      {isReadOnly && (
+        <Flex
+          align="center"
+          justify="space-between"
+          px="4"
+          py="2"
+          style={{
+            background: 'linear-gradient(90deg, rgba(124, 58, 237, 0.25), rgba(30, 41, 59, 0.9))',
+            borderBottom: '1px solid rgba(139, 92, 246, 0.35)',
+            color: '#e2e8f0',
+            fontSize: 13,
+            zIndex: 20,
+          }}
+        >
+          <Flex align="center" gap="2">
+            <Lock size={15} color="#c084fc" />
+            <Text weight="medium" style={{ color: '#f1f5f9', fontSize: 13 }}>
+              Read-Only Shared Document — You can view, export, or copy this document.
+            </Text>
+          </Flex>
+          <Flex align="center" gap="2">
+            <Button
+              size="1"
+              variant="solid"
+              color="violet"
+              onClick={onDuplicateDoc}
+              style={{ cursor: 'pointer', borderRadius: 8 }}
+            >
+              <Copy size={13} /> Make an Editable Copy
+            </Button>
+            {!currentUser && onOpenAuth && (
+              <Button
+                size="1"
+                variant="soft"
+                color="gray"
+                onClick={onOpenAuth}
+                style={{ cursor: 'pointer', borderRadius: 8 }}
+              >
+                <LogIn size={13} /> Sign In
+              </Button>
+            )}
+          </Flex>
+        </Flex>
+      )}
+
       {/* Floating Find & Replace Bar */}
       <FindReplaceBar
         isOpen={findOpen}
@@ -362,12 +413,12 @@ export default function Editor({
 
       {/* WYSIWYG Mode */}
       {mode === 'wysiwyg' && (
-        <Box style={{ height: '100%', overflowY: 'auto', padding: '40px 60px' }}>
+        <Box style={{ flex: 1, height: '100%', overflowY: 'auto', padding: '40px 60px' }}>
           <div
             ref={wysiwygRef}
-            contentEditable
+            contentEditable={!isReadOnly}
             suppressContentEditableWarning
-            className="wysiwyg-editor"
+            className={`wysiwyg-editor ${isReadOnly ? 'read-only' : ''}`}
             onInput={handleWysiwygInput}
             style={{
               minHeight: '100%',
@@ -377,6 +428,7 @@ export default function Editor({
               color: '#e2e8f0',
               maxWidth: 900,
               margin: '0 auto',
+              cursor: isReadOnly ? 'default' : 'text',
             }}
           />
         </Box>
@@ -387,10 +439,11 @@ export default function Editor({
         <textarea
           ref={sourceRef}
           value={markdown}
+          readOnly={isReadOnly}
           onChange={handleSourceChange}
           onKeyDown={handleKeyDown}
-          className="source-editor"
-          placeholder="Type Markdown source here..."
+          className={`source-editor ${isReadOnly ? 'read-only' : ''}`}
+          placeholder={isReadOnly ? 'This shared document is read-only...' : 'Type Markdown source here...'}
           style={{
             width: '100%',
             height: '100%',
@@ -404,21 +457,23 @@ export default function Editor({
             lineHeight: 1.6,
             resize: 'none',
             boxSizing: 'border-box',
+            cursor: isReadOnly ? 'default' : 'text',
           }}
         />
       )}
 
       {/* Split Mode */}
       {mode === 'split' && (
-        <Flex style={{ width: '100%', height: '100%', position: 'relative' }}>
+        <Flex style={{ width: '100%', flex: 1, height: '100%', position: 'relative' }}>
           <Box style={{ width: `${splitRatio}%`, height: '100%' }}>
             <textarea
               ref={sourceRef}
               value={markdown}
+              readOnly={isReadOnly}
               onChange={handleSourceChange}
               onKeyDown={handleKeyDown}
-              className="source-editor"
-              placeholder="Type Markdown source here..."
+              className={`source-editor ${isReadOnly ? 'read-only' : ''}`}
+              placeholder={isReadOnly ? 'This shared document is read-only...' : 'Type Markdown source here...'}
               style={{
                 width: '100%',
                 height: '100%',
@@ -432,6 +487,7 @@ export default function Editor({
                 lineHeight: 1.6,
                 resize: 'none',
                 boxSizing: 'border-box',
+                cursor: isReadOnly ? 'default' : 'text',
               }}
             />
           </Box>

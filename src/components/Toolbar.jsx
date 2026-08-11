@@ -55,6 +55,8 @@ export default function Toolbar({
   onOpenShare,
   onOpenComments,
   commentsCount,
+  isReadOnly = false,
+  onDuplicateDoc,
 }) {
   const providerInfo = AI_PROVIDERS[activeProvider] || AI_PROVIDERS.ollama;
 
@@ -73,23 +75,33 @@ export default function Toolbar({
 
         {/* File Actions */}
         <Flex gap="1">
-          <Tooltip content="New File (Ctrl+N)">
-            <IconButton variant="ghost" color="gray" size="2" onClick={onNewFile} style={{ width: 34, height: 34 }}>
-              <FilePlus size={16} />
-            </IconButton>
-          </Tooltip>
+          {isReadOnly ? (
+            <Tooltip content="Duplicate document to make edits">
+              <Button variant="solid" color="violet" size="2" onClick={onDuplicateDoc} style={{ height: 34, borderRadius: 8, cursor: 'pointer' }}>
+                <Copy size={15} /> Make a Copy
+              </Button>
+            </Tooltip>
+          ) : (
+            <>
+              <Tooltip content="New File (Ctrl+N)">
+                <IconButton variant="ghost" color="gray" size="2" onClick={onNewFile} style={{ width: 34, height: 34 }}>
+                  <FilePlus size={16} />
+                </IconButton>
+              </Tooltip>
 
-          <Tooltip content="Open File (Ctrl+O)">
-            <IconButton variant="ghost" color="gray" size="2" onClick={onOpenFile} style={{ width: 34, height: 34 }}>
-              <FolderOpen size={16} />
-            </IconButton>
-          </Tooltip>
+              <Tooltip content="Open File (Ctrl+O)">
+                <IconButton variant="ghost" color="gray" size="2" onClick={onOpenFile} style={{ width: 34, height: 34 }}>
+                  <FolderOpen size={16} />
+                </IconButton>
+              </Tooltip>
 
-          <Tooltip content="Save Document (Ctrl+S)">
-            <IconButton variant="ghost" color="gray" size="2" onClick={onSaveFile} style={{ width: 34, height: 34 }}>
-              <Save size={16} />
-            </IconButton>
-          </Tooltip>
+              <Tooltip content="Save Document (Ctrl+S)">
+                <IconButton variant="ghost" color="gray" size="2" onClick={onSaveFile} style={{ width: 34, height: 34 }}>
+                  <Save size={16} />
+                </IconButton>
+              </Tooltip>
+            </>
+          )}
 
           {/* Export Dropdown */}
           <DropdownMenu.Root>

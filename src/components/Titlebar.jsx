@@ -1,6 +1,6 @@
 import React from 'react';
-import { Flex, Text, Button, DropdownMenu, Tooltip, IconButton } from '@radix-ui/themes';
-import { FileText, Check, User, LogOut, KeyRound, LogIn, ChevronDown, HelpCircle, Pencil } from 'lucide-react';
+import { Flex, Text, Button, DropdownMenu, Tooltip, IconButton, Badge } from '@radix-ui/themes';
+import { FileText, Check, User, LogOut, KeyRound, LogIn, ChevronDown, HelpCircle, Pencil, Lock } from 'lucide-react';
 
 export default function Titlebar({
   filePath,
@@ -11,10 +11,15 @@ export default function Titlebar({
   onLogout,
   onOpenShortcuts,
   onRenameDoc,
+  isReadOnly = false,
 }) {
   const fileName = filePath ? filePath.split(/[\\/]/).pop() : 'Untitled.md';
 
   const handleTitleClick = () => {
+    if (isReadOnly) {
+      alert('This shared document is in Read-Only mode. Make a copy to rename.');
+      return;
+    }
     const newTitle = prompt('Rename document:', fileName);
     if (newTitle && newTitle.trim() && newTitle.trim() !== fileName) {
       onRenameDoc(newTitle.trim());
@@ -44,47 +49,55 @@ export default function Titlebar({
         </Text>
       </Flex>
 
-      {/* Center Document Title with Rename Action */}
+      {/* Center Document Title with Rename Action & Read-Only Badge */}
       <Flex align="center" gap="2" className="titlebar-no-drag">
         <Flex
           align="center"
           gap="1"
           onClick={handleTitleClick}
           style={{
-            cursor: 'pointer',
+            cursor: isReadOnly ? 'default' : 'pointer',
             padding: '2px 8px',
             borderRadius: 6,
             transition: 'background 0.15s ease',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)')}
+          onMouseEnter={(e) => (!isReadOnly ? (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)') : null)}
           onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
         >
           <Text size="2" weight="medium" style={{ color: '#cbd5e1', fontSize: 13 }}>
             {fileName}
           </Text>
-          <Tooltip content="Rename Document">
-            <Pencil size={12} color="#94a3b8" style={{ marginLeft: 4 }} />
-          </Tooltip>
+          {!isReadOnly && (
+            <Tooltip content="Rename Document">
+              <Pencil size={12} color="#94a3b8" style={{ marginLeft: 4 }} />
+            </Tooltip>
+          )}
         </Flex>
 
-        <Tooltip content={isModified ? 'Unsaved changes' : 'All changes saved'}>
-          <Flex align="center" gap="1" style={{ marginLeft: 4 }}>
-            {isModified ? (
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  backgroundColor: '#f59e0b',
-                  boxShadow: '0 0 10px #f59e0b',
-                  display: 'inline-block',
-                }}
-              />
-            ) : (
-              <Check color="#22c55e" size={14} />
-            )}
-          </Flex>
-        </Tooltip>
+        {isReadOnly ? (
+          <Badge color="violet" variant="soft" size="1" style={{ borderRadius: 10 }}>
+            <Lock size={10} /> Read-Only
+          </Badge>
+        ) : (
+          <Tooltip content={isModified ? 'Unsaved changes' : 'All changes saved'}>
+            <Flex align="center" gap="1" style={{ marginLeft: 4 }}>
+              {isModified ? (
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    backgroundColor: '#f59e0b',
+                    boxShadow: '0 0 10px #f59e0b',
+                    display: 'inline-block',
+                  }}
+                />
+              ) : (
+                <Check color="#22c55e" size={14} />
+              )}
+            </Flex>
+          </Tooltip>
+        )}
       </Flex>
 
       {/* Right User Authentication / Profile / Help Area */}
